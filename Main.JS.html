@@ -27,43 +27,68 @@
 
     window.TableRenovacionesRender = null;
     window.RolGlobal = null;
+    /** Última respuesta de GetDataUser (una sola carga inicial; el sidebar no vuelve a llamar al API). */
+    window.LastGetDataUserResponse = null;
 
     console.log("Sistema de Renovaciones inicializado");
 
-    function cambiarModulo(moduloActivo) {
-      // Ocultar todos los módulos
+    function showModuloGestionDocumental() {
+      $("#ModuleGestionDocumental").show();
       $("#ModuleRenovaciones").prop("hidden", true);
-      $(".page-inner").show();
+    }
 
-      // Remover clase active de todos los items del sidebar
-      $(".nav-item").removeClass("active");
+    function showModuloRenovaciones() {
+      $("#ModuleGestionDocumental").hide();
+      $("#ModuleRenovaciones").prop("hidden", false);
+    }
 
-      // Mostrar el módulo seleccionado
-      if (moduloActivo === 'renovaciones') {
-        $("#ModuleRenovaciones").prop("hidden", false);
-        $(".page-inner").hide();
+    function destroyPendingTableIfAny() {
+      if (typeof TableRender !== "undefined" && TableRender && $.fn.DataTable.isDataTable("#Table_Clients_Pending")) {
+        TableRender.clear().destroy();
+        TableRender = null;
       }
     }
 
-    $("#ButtonMenuRenovaciones").click(function (e) {
-      e.preventDefault();
-      console.log("🚀 Click en menú renovaciones (Carga desde Memoria)");
+    function navActivoGestionDocumental() {
+      $("#ListModuleGestionDocumental").addClass("active");
+      $("#ListModuleRenovacionesNav").removeClass("active");
+    }
 
-      // 1. Validación de Seguridad (Rol)
-      if (RolGlobal !== "Analista Renovaciones") {
-        Swal.fire('Acceso Denegado', 'No tienes permisos para acceder a este módulo', 'error');
+    function navActivoRenovaciones() {
+      $("#ListModuleRenovacionesNav").addClass("active");
+      $("#ListModuleGestionDocumental").removeClass("active");
+    }
+
+    function aplicarVistaGestionDocumentalDesdeCache() {
+      if (!LastGetDataUserResponse || LastGetDataUserResponse[0] !== "Autenticado") {
         return;
       }
+      destroyPendingTableIfAny();
+      var rol = LastGetDataUserResponse[3];
+      var payload = LastGetDataUserResponse[1];
+      if (rol === "Gestión Documental") {
+        CreatePendingTable(ReorganizeData(payload));
+      } else if (rol === "Gestión Documental 2") {
+        CreatePendingTableBrokersInmobiliarias(payload);
+      } else {
+        CreatePendingTable([]);
+      }
+    }
 
-      // 2. Cambiar la Vista (Ocultar lo demás, mostrar renovaciones)
-      cambiarModulo('renovaciones');
+    $("#ButtonMenuGestionDocumental").click(function (e) {
+      e.preventDefault();
+      showModuloGestionDocumental();
+      navActivoGestionDocumental();
+      aplicarVistaGestionDocumentalDesdeCache();
+    });
 
-      // 3. Pintar la UI (Sin llamar a Google Script)
-      // Si por alguna razón la variable está vacía, inicializamos vacía para que no rompa
+    $("#ButtonMenuRenovaciones").click(function (e) {
+      e.preventDefault();
+      showModuloRenovaciones();
+      navActivoRenovaciones();
       if (!DataRenovacionesGlobal) {
         DataRenovacionesGlobal = { pendientes: [], especiales: [], renovadas: [] };
       }
-
       UpdateRenovacionesUI();
     });
 
@@ -735,48 +760,37 @@ window.cancelado = function () {
 
     function ResponseFindUser(Data) {
       if (Data[0] === "Autenticado") {
+        LastGetDataUserResponse = Data;
         $('#lock-screen').hide();
         RolGlobal = Data[3]; // El Rol
         $("#UserId").text(Data[2]); // El Correo
 
         // --- CASO 1: GESTIÓN DOCUMENTAL (VIDA) ---
         if (RolGlobal === "Gestión Documental") {
-          $("#ListModuleValidationDocs").prop("hidden", false);
+          navActivoGestionDocumental();
+          showModuloGestionDocumental();
           var ReorganizedData = ReorganizeData(Data[1]);
           CreatePendingTable(ReorganizedData); // Esta función oculta el overlay internamente
         }
 
         // --- CASO 2: GESTIÓN DOCUMENTAL 2 (BROKERS) ---
         else if (RolGlobal === "Gestión Documental 2") {
-          $("#ListModuleValidationDocs2").prop("hidden", false);
+          navActivoGestionDocumental();
+          showModuloGestionDocumental();
           CreatePendingTableBrokersInmobiliarias(Data[1]); // Esta función oculta el overlay internamente
         }
 
-        // --- CASO 3: ANALISTA RENOVACIONES (EL QUE FALTABA) ---
+        // --- CASO 3: ANALISTA RENOVACIONES ---
         else if (RolGlobal === "Analista Renovaciones") {
-
-          $("#vistaAnalistaRenovaciones").show();
           DataRenovacionesGlobal = Data[1];
-          let dataBackend = DataRenovacionesGlobal;
-          let pendientes = dataBackend.pendientes || [];
-          let especiales = dataBackend.especiales || [];
-          let renovadas = dataBackend.renovadas || [];
-
-          $("#kpiAnaPendientes").text(pendientes.length);
-          $("#kpiAnaEspeciales").text(especiales.length);
-          $("#kpiAnaRenovadas").text(renovadas.length);
-
-          if (typeof CreateRenovacionesTable === "function") {
-            CreateRenovacionesTable(pendientes, 'pendientes');
-          } else {
-            console.error("Falta la función CreateRenovacionesTable");
-            $("#overlay").hide(); // Ocultar overlay si falla algo
-          }
-
+          navActivoRenovaciones();
+          showModuloRenovaciones();
+          UpdateRenovacionesUI();
           $("#overlay").hide();
         }
 
       } else {
+        LastGetDataUserResponse = null;
         // No autenticado
         $("#overlay").hide();
         $('#lock-screen').show();
@@ -2895,60 +2909,6 @@ window.cancelado = function () {
     });
 
 
-    $("#ButtonCargarRegistrosValidacionDocumental").click(function () {
-      $("#overlay").show();
-      $("#ListModuleValidationDocs").addClass("active");
-      $("#ListModuleValidationDocs2").removeClass("active");
-      TableRender.clear().destroy();
-      google.script.run.withSuccessHandler(ResponseFindUser).withFailureHandler(function (e) {
-        if (String(e).includes("NetworkError")) {
-          Swal.fire({
-            title: 'Error de Conexión',
-            icon: 'error',
-            html: 'Verifica la conexión a internet.',
-            showCancelButton: false,
-            confirmButtonText: "Cerrar"//&nbsp;<i class="bi bi-x-circle-fill"></i>,
-          });
-        } else {
-          Swal.fire({
-            title: 'Error de Ejecución',
-            icon: 'error',
-            html: 'Presentamos fallas en este momento, estamos trabajando para solucionarlo lo más pronto posible.',
-            showCancelButton: false,
-            confirmButtonText: "Cerrar"//&nbsp;<i class="bi bi-x-circle-fill"></i>,
-          });
-        }
-        $("#overlay").hide();
-      }).GetDataUser();
-    });
-
-    $("#ButtonCargarRegistrosValidacionDocumental2").click(function () {
-      $("#overlay").show();
-      $("#ListModuleValidationDocs").removeClass("active");
-      $("#ListModuleValidationDocs2").addClass("active");
-      TableRender.clear().destroy();
-      google.script.run.withSuccessHandler(CreatePendingTableBrokersInmobiliarias).withFailureHandler(function (e) {
-        if (String(e).includes("NetworkError")) {
-          Swal.fire({
-            title: 'Error de Conexión',
-            icon: 'error',
-            html: 'Verifica la conexión a internet.',
-            showCancelButton: false,
-            confirmButtonText: "Cerrar"//&nbsp;<i class="bi bi-x-circle-fill"></i>,
-          });
-        } else {
-          Swal.fire({
-            title: 'Error de Ejecución',
-            icon: 'error',
-            html: 'Presentamos fallas en este momento, estamos trabajando para solucionarlo lo más pronto posible.',
-            showCancelButton: false,
-            confirmButtonText: "Cerrar"//&nbsp;<i class="bi bi-x-circle-fill"></i>,
-          });
-        }
-        $("#overlay").hide();
-      }).GetDataBrokersYInmobiliarias();
-    });
-
     function CreatePendingTableBrokersInmobiliarias(Data) {
       console.log(Data)
       var TotalPending = Data.length;
@@ -4574,7 +4534,9 @@ window.ReloadRenovacionesTable = function() {
         .withSuccessHandler(function(Data) {
             // Validamos que la data venga correcta [Status, DataObject, Email, Rol]
             if (Data && Data[0] === "Autenticado") {
-                
+
+                window.LastGetDataUserResponse = Data;
+
                 // 1. Actualizar la variable Global con la nueva data fresca de BD
                 window.DataRenovacionesGlobal = Data[1];
 
