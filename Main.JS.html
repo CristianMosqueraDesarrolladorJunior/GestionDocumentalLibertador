@@ -178,136 +178,477 @@
       console.log("UI actualizada correctamente");
     };
 
-window.approveLead = function() {
+    /* --- Modal correo renovaciones (US-01 a US-03) --- */
+    window._pendingRenovacionDecisionPayload = null;
+    window._currentRenovacionCorreoAction = null;
 
-  let granTotal = 0;
-    
-    // Intentamos obtenerlo del objeto de datos global (ajusta 'currentFullData' si usas 'currentLeadData')
-    if (typeof currentFullData !== 'undefined' && currentFullData.detalleFinanciero) {
-        granTotal = currentFullData.detalleFinanciero.granTotal;
-    } else if (typeof currentLeadData !== 'undefined' && currentLeadData.detalleFinanciero) {
-        granTotal = currentLeadData.detalleFinanciero.granTotal;
+    function buildRenovacionCorreoContext() {
+      if (!currentFullData) return { emailAnalistaAsignado: '', segmentoSheetColumn: '' };
+      return {
+        emailAnalistaAsignado: (currentFullData.nombreAgente || '').trim(),
+        segmentoSheetColumn: (currentFullData.etapaFunel || '').trim()
+      };
     }
 
-    // 1. Validar Score
-    var score = parseInt($('#confidenceScore').text());
-    if (score < 100) {
-         Swal.fire('Incompleto', 'Debe completar la validación al 100%.', 'warning');
-         return;
+    /** Promisifica google.script.run para usar async/await y encadenar llamadas con menos anidación. */
+    function googleScriptRunAsync(methodName, arg) {
+      return new Promise(function (resolve, reject) {
+        google.script.run
+          .withSuccessHandler(resolve)
+          .withFailureHandler(reject)[methodName](arg);
+      });
     }
 
-    // 2. RECOLECCIÓN DE DATOS (Usando parseCurrencyValue para limpiar formato)
-let manualData = {
-      // Fechas
-      fechaInicioNuevaVigencia: $('#fechaInicioVigencia').val(),
-      fechaFinNuevaVigencia:    $('#fechaFinVigencia').val(),
-      mesesVigencia:            parseInt($('#new_meses_vigencia').val()) || 12,
-      
-      // Valores Asegurados (Inputs)
-      canon:        parsearMoneda($('#db_NUEVO_CANON_SOLO').val()),
-      admon:        parsearMoneda($('#db_NUEVA_ADMINISTRACION').val()),
-      valorAsegSep: parsearMoneda($('#nuevosServicios').val()),
-      valorAsegDyf: parsearMoneda($('#nuevosDyF').val()),
-      
-      // Configuración
-      ajusteIPC:    parseFloat($('#input_IPC').val()) || 0,
-      tipoServicio: $('#tipoServicio').val(),
-      
-      // Totales Financieros
-      granTotal:       granTotal,
-      cotizacionTotal: granTotal,
-      
-      // Detalle Financiero (Textos en las tarjetas resumen)
-      detalleFinanciero: {
-          primaNetaCanon: parsearMoneda($('#card_prima_canon').text()),
-          ivaCanon:       parsearMoneda($('#card_iva_canon').text()),
-          primaNetaServ:  parsearMoneda($('#card_prima_serv').text()),
-          ivaServ:        parsearMoneda($('#card_iva_serv').text()),
-          primaNetaDyF:   parsearMoneda($('#card_prima_dyf').text()),
-          ivaDyF:         parsearMoneda($('#card_iva_dyf').text())
-      },
+    /**
+     * Arma el mismo payload que el envío real (sin adjuntos aún).
+     * @returns {{ envio: object } | { error: string, message: string }}
+     */
+    function armarPayloadCorreoRenovacionCompleto() {
+      var tipo = window._currentRenovacionCorreoAction;
+      var base = window._pendingRenovacionDecisionPayload;
+      if (!tipo || !base) {
+        return { error: 'no_payload', message: 'No hay una gestión pendiente.' };
+      }
+      if (tipo === 'CORRECTION' || tipo === 'CANCELADA') {
+        var mot = ($('#renovacionCorreoMotivo').val() || '').trim();
+        if (!mot) {
+          return { error: 'motivo', message: 'Indique el motivo u observaciones antes de validar o enviar.' };
+        }
+        base.observations = mot;
+      }
+      var ctx = buildRenovacionCorreoContext();
+      var envio = Object.assign({}, base, {
+        tipoAccionCorreo: tipo,
+        decision: base.decision || (tipo === 'APPROVE' ? 'APPROVE' : tipo === 'CORRECTION' ? 'CORRECTION' : 'CANCELADA'),
+        correoAdicional1: $('#renovacionCorreoExtra1').val(),
+        correoAdicional2: $('#renovacionCorreoExtra2').val(),
+        emailAnalistaAsignado: ctx.emailAnalistaAsignado,
+        segmentoSheetColumn: ctx.segmentoSheetColumn,
+        notasAnalista: $('#notasAnalista').val() || '',
+        leadSelect: (currentFullData && currentFullData.leadSelect) ? currentFullData.leadSelect : {},
+        ccSeleccionados: getSeleccionadosCorreoRenovacion()
+      });
+      if (tipo === 'CORRECTION') envio.segmento = resolverSegmentoParaCorreccion();
+      return { envio: envio };
+    }
 
-      editadoPorAnalista: true,
-      fechaEdicion: new Date().toISOString()
+    function resolverSegmentoParaCorreccion() {
+      if (!currentFullData) return 'SIN SEGMENTO';
+      if (currentFullData.dataLead && currentFullData.dataLead.segmento) return currentFullData.dataLead.segmento;
+      if (currentFullData.etapaFunel) return currentFullData.etapaFunel;
+      return 'SIN SEGMENTO';
+    }
+
+    function cerrarRenovacionCorreoOverlay() {
+      var $ov = $('#renovacionCorreoOverlay');
+      $ov.removeClass('is-open').attr('aria-hidden', 'true');
+      window._pendingRenovacionDecisionPayload = null;
+      window._currentRenovacionCorreoAction = null;
+    }
+
+    function openRenovacionCorreoOverlay(tipoAccion) {
+      var titulos = {
+        APPROVE: 'Correo: renovación aprobada / expedición',
+        CORRECTION: 'Correo: solicitud de correcciones',
+        CANCELADA: 'Correo: renovación declinada (imposible renovar)'
+      };
+      $('#renovacionCorreoTitulo').text(titulos[tipoAccion] || 'Vista previa del correo');
+      var showMotivo = (tipoAccion === 'CORRECTION' || tipoAccion === 'CANCELADA');
+      $('#rowRenovacionCorreoMotivo').toggleClass('d-none', !showMotivo);
+      if (showMotivo) $('#renovacionCorreoMotivo').val('');
+      $('#renovacionCorreoExtra1').val('');
+      $('#renovacionCorreoExtra2').val('');
+      window._renovacionCorreoAdjuntosUids = [];
+      actualizarResumenAdjuntosCorreoRenovacion();
+      $('#renovacionCorreoCandidatosContainer').html('<p class="text-muted small p-3 mb-0">Cargando contactos de la póliza…</p>');
+      $('#renovacionCorreoAsignacionCorreccion').addClass('d-none').empty();
+      window._currentRenovacionCorreoAction = tipoAccion;
+      $('#renovacionCorreoOverlay').addClass('is-open').attr('aria-hidden', 'false');
+      refreshRenovacionCorreoPreview(true);
+    }
+
+    function renderRenovacionCorreoAsignacionPanel(tipo, r) {
+      var $box = $('#renovacionCorreoAsignacionCorreccion');
+      if (!$box.length) return;
+      if (tipo !== 'CORRECTION' || !r || !r.asignacionCorreccion) {
+        $box.addClass('d-none').empty();
+        return;
+      }
+      var a = r.asignacionCorreccion;
+      var parts = [];
+      parts.push('<div class="fw-semibold text-dark mb-1"><i class="bi bi-person-badge me-1"></i>Quién recibirá la corrección </div>');
+      parts.push('<div class="text-muted mb-2">' + escapeHtmlRenovCorreoUi(a.colaLegible || a.cola || '') + '</div>');
+      if (a.agentePrevisto && a.agentePrevisto.email) {
+        parts.push(escapeHtmlRenovCorreoUi(a.agentePrevisto.nombre || '—'));
+        parts.push(' <span class="text-muted">·</span> ');
+        parts.push('<span class="text-break">' + escapeHtmlRenovCorreoUi(a.agentePrevisto.email) + '</span></div>');
+      } else {
+        parts.push('<div class="text-warning">No hay asesor con cupo en esta cola; en hoja quedará <span class="text-break">' + escapeHtmlRenovCorreoUi(a.emailEnHoja || 'sin.asignar@segurosbolivar.com') + '</span></div>');
+      }
+      if (a.agentesDisponibles && a.agentesDisponibles.length) {
+        parts.push('<details class="mt-2 mb-0"><summary class="fw-semibold" style="cursor:pointer;">Asesores con cupo en la cola (' + a.agentesDisponibles.length + ')</summary><ul class="mb-0 mt-1 ps-3">');
+        a.agentesDisponibles.forEach(function (ag) {
+          parts.push('<li class="text-break">' + escapeHtmlRenovCorreoUi(ag.nombre || '') + ' — ' + escapeHtmlRenovCorreoUi(ag.email || '') + '</li>');
+        });
+        parts.push('</ul></details>');
+      }
+      $box.removeClass('d-none').html(parts.join(''));
+    }
+
+    function getSeleccionadosCorreoRenovacion() {
+      var out = [];
+      $('#renovacionCorreoCandidatosContainer .renov-correo-cb:checked').each(function () {
+        var v = $(this).attr('data-correo');
+        if (v) out.push(String(v).trim());
+      });
+      return out;
+    }
+
+    function renderRenovacionCorreoCandidatos(candidatos) {
+      var $c = $('#renovacionCorreoCandidatosContainer').empty();
+      if (!candidatos || !candidatos.length) {
+        $c.append('<p class="text-muted small p-3 mb-0">No se hallaron correos en el JSON de la póliza. Use los campos adicionales o revise los datos del lead.</p>');
+        return;
+      }
+      candidatos.forEach(function (c, idx) {
+        var id = 'renov-correo-cb-' + idx;
+        var esRegla = (c.fuenteDatos === 'parametrizado' || (c.id && String(c.id).indexOf('regla_') === 0));
+        var $row = $('<div class="renov-correo-row d-flex align-items-start gap-2 py-2 px-2 border-bottom"></div>');
+        var $chk = $('<input type="checkbox" class="form-check-input renov-correo-cb mt-1 flex-shrink-0">')
+          .attr('id', id)
+          .attr('data-correo', c.correo || '')
+          .attr('data-es-regla', esRegla ? '1' : '0')
+          .prop('checked', !!c.seleccionado);
+        var $lab = $('<label class="form-check-label flex-grow-1 mb-0" style="cursor:pointer;"></label>').attr('for', id);
+        var badgeExtra = 'bg-secondary';
+        var cat = (c.categoria || '').toLowerCase();
+        if (cat.indexOf('propietario') !== -1 || cat.indexOf('tomador') !== -1) badgeExtra = 'bg-primary';
+        else if (cat.indexOf('bróker') !== -1 || cat.indexOf('broker') !== -1) badgeExtra = 'bg-dark';
+        else if (cat.indexOf('inmobiliaria') !== -1) badgeExtra = 'bg-info text-dark';
+        else if (cat.indexOf('arrendatario') !== -1) badgeExtra = 'bg-success';
+        else if (cat.indexOf('regla') !== -1 || cat.indexOf('param') !== -1) badgeExtra = 'bg-warning text-dark';
+        $lab.append($('<span class="badge me-1"></span>').addClass(badgeExtra).text(c.categoria || 'Contacto'));
+        $lab.append($('<strong class="d-block"></strong>').text(c.titulo || ''));
+        $lab.append($('<span class="small text-break text-muted d-block"></span>').text(c.correo || ''));
+        if (c.fuenteDatos) {
+          var $fuente = $('<div class="small text-muted mt-1"></div>');
+          $fuente.append($('<i class="bi bi-database me-1"></i>'));
+          $fuente.append($('<span></span>').text(c.fuenteDatos));
+          $lab.append($fuente);
+        }
+        $row.append($chk).append($lab);
+        $c.append($row);
+      });
+    }
+
+    /** primeraCarga: no envía ccSeleccionados para aplicar defaults del servidor */
+    async function refreshRenovacionCorreoPreviewAsync(primeraCarga) {
+      var tipo = window._currentRenovacionCorreoAction;
+      if (!tipo || !currentFullData || !currentFullData.dataLead) return;
+      var ctx = buildRenovacionCorreoContext();
+      var obsMotivo = $('#renovacionCorreoMotivo').val() || '';
+      var notas = $('#notasAnalista').val() || '';
+      var obsForPreview = (tipo === 'APPROVE') ? (notas || 'Renovación aprobada') : obsMotivo;
+
+      var payload = {
+        tipoAccionCorreo: tipo,
+        dataLead: currentFullData.dataLead,
+        leadSelect: currentFullData.leadSelect || {},
+        segmentoSheetColumn: ctx.segmentoSheetColumn,
+        emailAnalistaAsignado: ctx.emailAnalistaAsignado,
+        observations: obsForPreview,
+        notasAnalista: notas,
+        correoAdicional1: $('#renovacionCorreoExtra1').val(),
+        correoAdicional2: $('#renovacionCorreoExtra2').val()
+      };
+      var hayCbs = $('#renovacionCorreoCandidatosContainer .renov-correo-cb').length > 0;
+      if (!primeraCarga && hayCbs) {
+        payload.ccSeleccionados = getSeleccionadosCorreoRenovacion();
+      }
+      if (tipo === 'CORRECTION') {
+        payload.segmento = resolverSegmentoParaCorreccion();
+      }
+
+      try {
+        var r = await googleScriptRunAsync('getRenovacionCorreoPreview', payload);
+        if (!r || !r.success) {
+          Swal.fire('Vista previa', (r && r.message) ? r.message : 'No se pudo generar la vista previa.', 'error');
+          return;
+        }
+        $('#renovacionCorreoPara').text(r.para || '—');
+        $('#renovacionCorreoAsunto').text(r.subject || '—');
+        $('#renovacionCorreoSegmentoBadge').text(r.segmentoNorm || '—');
+        renderRenovacionCorreoAsignacionPanel(tipo, r);
+        renderRenovacionCorreoCandidatos(r.candidatos || []);
+        var iframe = document.getElementById('renovacionCorreoIframe');
+        if (iframe) iframe.srcdoc = r.htmlBody || '<p>Sin contenido</p>';
+      } catch (err) {
+        Swal.fire('Error', err.message || String(err), 'error');
+      }
+    }
+
+    function refreshRenovacionCorreoPreview(primeraCarga) {
+      refreshRenovacionCorreoPreviewAsync(primeraCarga).catch(function (e) {
+        console.error(e);
+      });
+    }
+
+    function ejecutarValidacionCorreoRenovacionSinEnvio() {
+      var pack = armarPayloadCorreoRenovacionCompleto();
+      if (pack.error) {
+        Swal.fire('Atención', pack.message, 'warning');
+        return;
+      }
+      Swal.fire({
+        title: 'Validando (sin correo ni hoja)…',
+        allowOutsideClick: false,
+        didOpen: function () { Swal.showLoading(); }
+      });
+      (async function () {
+        try {
+          pack.envio.emailAdjuntos = await construirPayloadAdjuntosCorreoRenovacionAsync();
+        } catch (adjErr) {
+          Swal.close();
+          Swal.fire('Error', 'No se pudieron leer los adjuntos: ' + (adjErr.message || adjErr), 'error');
+          return;
+        }
+        try {
+          var res = await googleScriptRunAsync('probarCorreoRenovacionSinEnvio', pack.envio);
+          Swal.close();
+          var rs = res.resumen || {};
+          var lines = [];
+          lines.push('<p class="mb-2"><strong>' + escapeHtmlRenovCorreoUi(res.message || '') + '</strong></p>');
+          lines.push('<ul class="text-start small mb-2 ps-3">');
+          lines.push('<li>Para: ' + escapeHtmlRenovCorreoUi(rs.para || '—') + '</li>');
+          lines.push('<li>CC: ' + escapeHtmlRenovCorreoUi(String((rs.cc || []).join(', ') || '—')) + '</li>');
+          lines.push('<li>Asunto: ' + escapeHtmlRenovCorreoUi(rs.asunto || '—') + '</li>');
+          lines.push('<li>Segmento: ' + escapeHtmlRenovCorreoUi(rs.segmento || '—') + '</li>');
+          if (rs.asignacionCorreccion) {
+            var ac = rs.asignacionCorreccion;
+            lines.push('<li>Cola corrección hoja: ' + escapeHtmlRenovCorreoUi(ac.colaLegible || ac.cola || '—') + '</li>');
+            if (ac.agentePrevisto && ac.agentePrevisto.email) {
+              lines.push('<li>Asesor previsto: ' + escapeHtmlRenovCorreoUi(ac.agentePrevisto.nombre || '') + ' — ' + escapeHtmlRenovCorreoUi(ac.agentePrevisto.email) + '</li>');
+            } else {
+              lines.push('<li>Asesor previsto: ' + escapeHtmlRenovCorreoUi(ac.emailEnHoja || '—') + '</li>');
+            }
+          }
+          lines.push('<li>Candidatos UI: ' + String(rs.numCandidatos != null ? rs.numCandidatos : '—') + '</li>');
+          lines.push('<li>Tamaño HTML cuerpo: ' + String(rs.tamanoHtmlCuerpo != null ? rs.tamanoHtmlCuerpo : '—') + ' caracteres</li>');
+          lines.push('<li>Adjuntos solicitados / blobs OK: ' + String(rs.numAdjuntosSolicitados != null ? rs.numAdjuntosSolicitados : 0) + ' / ' + String(rs.numAdjuntosBlobOk != null ? rs.numAdjuntosBlobOk : 0) + '</li>');
+          lines.push('</ul>');
+          if (res.adjuntosInforme && res.adjuntosInforme.length) {
+            lines.push('<p class="fw-bold small mb-1">Detalle adjuntos (servidor)</p><ul class="text-start small ps-3">');
+            res.adjuntosInforme.forEach(function (a) {
+              var st = a.ok ? '<span class="text-success">OK</span>' : '<span class="text-danger">' + escapeHtmlRenovCorreoUi(a.error || '') + '</span>';
+              lines.push('<li>' + escapeHtmlRenovCorreoUi(a.nombre || '') + ' — ' + st + '</li>');
+            });
+            lines.push('</ul>');
+          }
+          Swal.fire({
+            title: res.success ? 'Prueba OK' : 'Prueba con errores',
+            icon: res.success ? 'success' : 'warning',
+            html: lines.join(''),
+            width: 680
+          });
+        } catch (err) {
+          Swal.close();
+          Swal.fire('Error', err.message || String(err), 'error');
+        }
+      })();
+    }
+
+    function ejecutarRenovacionCorreoYProceso() {
+      var pack = armarPayloadCorreoRenovacionCompleto();
+      if (pack.error) {
+        Swal.fire('Atención', pack.message, 'warning');
+        return;
+      }
+      var envio = pack.envio;
+
+      Swal.fire({
+        title: 'Enviando correo y guardando…',
+        html: 'Por favor espere.',
+        allowOutsideClick: false,
+        didOpen: function () { Swal.showLoading(); }
+      });
+
+      (async function () {
+        try {
+          envio.emailAdjuntos = await construirPayloadAdjuntosCorreoRenovacionAsync();
+        } catch (adjErr) {
+          Swal.close();
+          Swal.fire('Error', 'No se pudieron leer los adjuntos: ' + (adjErr.message || adjErr), 'error');
+          return;
+        }
+
+        try {
+          var res = await googleScriptRunAsync('procesarDecisionAnalistaConCorreo', envio);
+          Swal.close();
+          if (res && res.success) {
+            cerrarRenovacionCorreoOverlay();
+            $('#modalGestionDocumentalIA').modal('hide');
+            if (typeof ReloadRenovacionesTable === 'function') ReloadRenovacionesTable();
+            Swal.fire({ icon: 'success', title: 'Listo', text: res.message || 'Proceso completado.', timer: 2200, showConfirmButton: false });
+          } else {
+            Swal.fire('Error', (res && res.message) ? res.message : 'Fallo al procesar.', 'error');
+          }
+        } catch (err) {
+          Swal.close();
+          Swal.fire('Error', err.message || String(err), 'error');
+        }
+      })();
+    }
+
+    $(function () {
+      $(document).on('click', '#btnRenovacionCorreoCerrar', function () {
+        cerrarRenovacionCorreoOverlay();
+      });
+      $(document).on('click', '#btnRenovacionCorreoRefreshPreview', function () {
+        refreshRenovacionCorreoPreview(false);
+      });
+      $(document).on('click', '#btnRenovacionCorreoMarcarRegla', function () {
+        $('#renovacionCorreoCandidatosContainer .renov-correo-cb').each(function () {
+          $(this).prop('checked', $(this).attr('data-es-regla') === '1');
+        });
+        refreshRenovacionCorreoPreview(false);
+      });
+      $(document).on('click', '#btnRenovacionCorreoEnviar', function () {
+        ejecutarRenovacionCorreoYProceso();
+      });
+      $(document).on('click', '#btnRenovacionCorreoValidar', function () {
+        ejecutarValidacionCorreoRenovacionSinEnvio();
+      });
+      $(document).on('click', '#btnRenovacionCorreoAdjuntos', function () {
+        abrirModalSeleccionAdjuntosCorreoRenovacion();
+      });
+    });
+
+    window.abrirModalParamCorreoRenovacion = function () {
+      google.script.run
+        .withSuccessHandler(function (r) {
+          if (!r || !r.success) {
+            Swal.fire('Error', (r && r.message) ? r.message : 'No se pudieron cargar los parámetros.', 'error');
+            return;
+          }
+          var $tb = $('#tbodyParamCorreoRenovacion').empty();
+          (r.filas || []).forEach(function (row, idx) {
+            $tb.append(
+              '<tr data-idx="' + idx + '">' +
+              '<td><input type="text" class="form-control form-control-sm param-cr-clave" readonly value="' +
+              String(row.clave || '').replace(/"/g, '&quot;') + '"></td>' +
+              '<td><input type="text" class="form-control form-control-sm param-cr-nombre" value="' +
+              String(row.nombre || '').replace(/"/g, '&quot;') + '"></td>' +
+              '<td><input type="email" class="form-control form-control-sm param-cr-correo" value="' +
+              String(row.correo || '').replace(/"/g, '&quot;') + '"></td>' +
+              '<td><input type="text" class="form-control form-control-sm param-cr-esp" value="' +
+              String(row.especialidad || '').replace(/"/g, '&quot;') + '"></td></tr>'
+            );
+          });
+          $('#modalParamCorreoRenovacion').modal('show');
+        })
+        .withFailureHandler(function (e) {
+          Swal.fire('Error', e.message || String(e), 'error');
+        })
+        .listarParamCorreoRenovacion();
+    };
+
+    window.guardarTablaParamCorreoRenovacion = function () {
+      var filas = [];
+      $('#tbodyParamCorreoRenovacion tr').each(function () {
+        var $tr = $(this);
+        filas.push({
+          clave: $tr.find('.param-cr-clave').val(),
+          nombre: $tr.find('.param-cr-nombre').val(),
+          correo: $tr.find('.param-cr-correo').val(),
+          especialidad: $tr.find('.param-cr-esp').val()
+        });
+      });
+      google.script.run
+        .withSuccessHandler(function (r) {
+          if (r && r.success) Swal.fire('Guardado', r.message || 'OK', 'success');
+          else Swal.fire('Error', (r && r.message) ? r.message : 'Error al guardar', 'error');
+        })
+        .withFailureHandler(function (e) {
+          Swal.fire('Error', e.message || String(e), 'error');
+        })
+        .guardarParamCorreoRenovacion(filas);
+    };
+
+window.approveLead = function () {
+  var granTotal = 0;
+  if (typeof currentFullData !== 'undefined' && currentFullData.detalleFinanciero) {
+    granTotal = currentFullData.detalleFinanciero.granTotal;
+  } else if (typeof currentLeadData !== 'undefined' && currentLeadData.detalleFinanciero) {
+    granTotal = currentLeadData.detalleFinanciero.granTotal;
+  }
+
+  var score = parseInt($('#confidenceScore').text(), 10);
+  if (score < 100) {
+    Swal.fire('Incompleto', 'Debe completar la validación al 100%.', 'warning');
+    return;
+  }
+
+  var manualData = {
+    fechaInicioNuevaVigencia: $('#fechaInicioVigencia').val(),
+    fechaFinNuevaVigencia: $('#fechaFinVigencia').val(),
+    mesesVigencia: parseInt($('#new_meses_vigencia').val(), 10) || 12,
+    canon: parsearMoneda($('#db_NUEVO_CANON_SOLO').val()),
+    admon: parsearMoneda($('#db_NUEVA_ADMINISTRACION').val()),
+    valorAsegSep: parsearMoneda($('#nuevosServicios').val()),
+    valorAsegDyf: parsearMoneda($('#nuevosDyF').val()),
+    ajusteIPC: parseFloat($('#input_IPC').val()) || 0,
+    tipoServicio: $('#tipoServicio').val(),
+    granTotal: granTotal,
+    cotizacionTotal: granTotal,
+    detalleFinanciero: {
+      primaNetaCanon: parsearMoneda($('#card_prima_canon').text()),
+      ivaCanon: parsearMoneda($('#card_iva_canon').text()),
+      primaNetaServ: parsearMoneda($('#card_prima_serv').text()),
+      ivaServ: parsearMoneda($('#card_iva_serv').text()),
+      primaNetaDyF: parsearMoneda($('#card_prima_dyf').text()),
+      ivaDyF: parsearMoneda($('#card_iva_dyf').text())
+    },
+    editadoPorAnalista: true,
+    fechaEdicion: new Date().toISOString()
   };
 
-    // Validación Básica
-    // if(manualData.cotizacionTotal <= 0) {
-    //     Swal.fire('Atención', 'El Valor Total de la Póliza no puede ser cero.', 'warning');
-    //     return;
-    // }
+  Swal.fire({
+    title: 'Preparando gestión',
+    html: 'Leyendo documentos…',
+    allowOutsideClick: false,
+    didOpen: function () { Swal.showLoading(); }
+  });
 
-    Swal.fire({
-        title: 'Confirmar Renovación',
-        html: `Se renovara la póliza.`,
-        icon: 'question',
-        showCancelButton: true,
-        confirmButtonText: 'Sí, Renovar',
-        confirmButtonColor: '#198754',
-        showLoaderOnConfirm: true,
-        preConfirm: async () => {
-             let localFiles = {};
-             let driveFiles = {};
-             for (let key of DOC_KEYS) {
-                if (docState[key].file) {
-                    try {
-                        let b64 = await readFileAsBase64(docState[key].file);
-                        localFiles[key] = b64; 
-                    } catch(e) { console.error(e); }
-                } else if (docState[key].isDrive && docState[key].url) {
-                    driveFiles[key] = { url: docState[key].url, name: $(`#name-${key}`).text().trim() };
-                }
-            }
-
-            return {
-                decision: 'APPROVE',
-                leadId: currentFullData.dataLead.poliza || currentFullData.dataLead.solicitud,
-                dataLead: currentFullData.dataLead,
-                files: localFiles,
-                driveRefs: driveFiles,
-                observations: $('#notasAnalista').val() || "Renovación Aprobada",
-                manualUpdates: manualData // <--- Aquí van los datos numéricos limpios
-            };
+  (async function () {
+    try {
+      var localFiles = {};
+      var driveFiles = {};
+      for (var ki = 0; ki < DOC_KEYS.length; ki++) {
+        var key = DOC_KEYS[ki];
+        if (docState[key].file) {
+          try {
+            localFiles[key] = await readFileAsBase64(docState[key].file);
+          } catch (e) { console.error(e); }
+        } else if (docState[key].isDrive && docState[key].url) {
+          driveFiles[key] = { url: docState[key].url, name: $('#name-' + key).text().trim() };
         }
-// ... dentro de approveLead ...
-    }).then((result) => {
-        if (result.isConfirmed) {
-             
-             Swal.fire({
-                 title: 'Procesando Renovación',
-                 html: 'Guardando datos...',
-                 allowOutsideClick: false,
-                 didOpen: () => { Swal.showLoading(); }
-             });
-
-             google.script.run
-                .withSuccessHandler(res => {
-                    if(res.success) {
-                        // 2. ACCIÓN EXITOSA
-                        $('#modalGestionDocumentalIA').modal('hide');
-                        
-                        // 3. LLAMAR A LA FUNCIÓN DE RECARGA (Sin Swal propio)
-                        if(typeof ReloadRenovacionesTable === 'function') {
-                            ReloadRenovacionesTable();
-                        }
-
-                        // 4. MOSTRAR MENSAJE DE ÉXITO (Esto cierra/reemplaza el spinner automáticamente)
-                        Swal.fire({
-                            icon: 'success', 
-                            title: '¡Éxito!', 
-                            text: 'Póliza renovada correctamente.',
-                            timer: 2000,
-                            showConfirmButton: false
-                        });
-
-                    } else {
-                        Swal.fire('Error', res.message, 'error');
-                    }
-                })
-                .withFailureHandler(err => Swal.fire('Error', err.message, 'error'))
-                .processAnalystDecision(result.value);
-        }
-    });
+      }
+      Swal.close();
+      window._pendingRenovacionDecisionPayload = {
+        decision: 'APPROVE',
+        leadId: currentFullData.dataLead.poliza || currentFullData.dataLead.solicitud,
+        dataLead: currentFullData.dataLead,
+        files: localFiles,
+        driveRefs: driveFiles,
+        observations: $('#notasAnalista').val() || 'Renovación aprobada',
+        manualUpdates: manualData
+      };
+      openRenovacionCorreoOverlay('APPROVE');
+    } catch (err) {
+      Swal.close();
+      Swal.fire('Error', 'No se pudieron preparar los archivos: ' + (err.message || err), 'error');
+    }
+  })();
 };
 
 
@@ -396,160 +737,34 @@ window.markAsReviewed = async function() {
 
 
 window.requestCorrections = function () {
-     const modalContainer = document.getElementById('modalGestionDocumentalIA');
-
-    Swal.fire({
-        title: 'Solicitar Correcciones',
-        input: 'textarea',
-        inputLabel: 'Indique los motivos de devolución:',
-        inputPlaceholder: 'Ej: El documento Sarlaft está ilegible...',
-  
-        target: modalContainer, 
-         inputAttributes: {
-            'aria-label': 'Motivo de la corrección'
-        },
-        showCancelButton: true,
-        confirmButtonText: 'Devolver Trámite',
-        confirmButtonColor: '#dc3545',
-        showLoaderOnConfirm: true,
-        didOpen: () => {
-             const input = Swal.getInput();
-             if (input) input.focus();
-        },
-
-        preConfirm: (observacion) => {
-            if (!observacion) {
-                Swal.showValidationMessage('Debe escribir una observación obligatoriamente');
-                return false;
-            }
-
-            let seg = "SIN SEGMENTO";
-            if (currentFullData.dataLead.segmento) {
-                seg = currentFullData.dataLead.segmento;
-            } 
-
-            console.log("EL SEGMENTO QUE SE ENVIA ES: " + seg)
-            console.log("EL SEGMENTO QUE SE ENVIA ES: " + seg)
-            console.log("EL SEGMENTO QUE SE ENVIA ES: " + seg)
-            return {
-                decision: 'CORRECTION',
-                 leadId: (currentFullData && currentFullData.dataLead) ? (currentFullData.dataLead.poliza || currentFullData.dataLead.solicitud) : null,
-                dataLead: (currentFullData) ? currentFullData.dataLead : {}, 
-                observations: observacion,
-                segmento: seg
-            };
-        }
-    }).then((result) => {
-        if (result.isConfirmed) {
-            
-            Swal.fire({
-                 title: 'Enviando Correcciones',
-                 html: 'Notificando al asesor y actualizando registros...',
-                 allowOutsideClick: false,
-                 didOpen: () => { Swal.showLoading(); }
-            });
-
-            google.script.run
-                .withSuccessHandler(res => {
-                    if (res.success) {
-                        $('#modalGestionDocumentalIA').modal('hide');
-
-                        // 2. RECARGAR TABLA Y KPIS
-                        if(typeof ReloadRenovacionesTable === 'function') {
-                            ReloadRenovacionesTable();
-                        }
-
-                        // 3. CONFIRMACIÓN VISUAL
-                        Swal.fire({
-                           title: 'Devuelto', 
-                           text: 'El caso ha sido devuelto al asesor.', 
-                           icon: 'info',
-                           timer: 2000,
-                           showConfirmButton: false
-                        });
-                        
-                    } else {
-                        Swal.fire('Error', res.message, 'error');
-                    }
-                })
-                .withFailureHandler(err => Swal.fire('Error', err.message, 'error'))
-                .processAnalystDecision(result.value);
-        }
-    });
+  if (!currentFullData || !currentFullData.dataLead) {
+    Swal.fire('Atención', 'No hay un caso cargado.', 'warning');
+    return;
+  }
+  window._pendingRenovacionDecisionPayload = {
+    decision: 'CORRECTION',
+    leadId: currentFullData.dataLead.poliza || currentFullData.dataLead.solicitud,
+    dataLead: currentFullData.dataLead,
+    observations: '',
+    segmento: resolverSegmentoParaCorreccion()
+  };
+  openRenovacionCorreoOverlay('CORRECTION');
 };
 
 
 
 window.cancelado = function () {
-    const modalContainer = document.getElementById('modalGestionDocumentalIA');
-
-    Swal.fire({
-        title: 'Cancelar Renovación',
-        input: 'textarea',
-        inputLabel: 'Indique los motivos para cancelar la renovación:',
-        inputPlaceholder: 'Ej: El cliente no cuenta con póliza del año pasado...',
-        target: modalContainer, // CLAVE: Renderiza dentro del modal para permitir escritura
-        inputAttributes: {
-            'aria-label': 'Motivo de cancelación'
-        },
-        showCancelButton: true,
-        confirmButtonText: 'Cancelar Trámite',
-        confirmButtonColor: '#dc3545',
-        showLoaderOnConfirm: true,
-        didOpen: () => {
-             const input = Swal.getInput();
-             if (input) input.focus(); // Asegura el foco al abrir
-        },
-        preConfirm: (observacion) => {
-            if (!observacion) {
-                Swal.showValidationMessage('Debe escribir una observación obligatoriamente');
-                return false;
-            }
-            return {
-                decision: 'CANCELADA',
-                leadId: (currentFullData && currentFullData.dataLead) ? (currentFullData.dataLead.poliza || currentFullData.dataLead.solicitud) : null,
-                dataLead: (currentFullData) ? currentFullData.dataLead : {},
-                observations: observacion
-            };
-        }
-}).then((result) => {
-        if (result.isConfirmed) {
-            
-            // 1. INICIAR SPINNER
-            Swal.fire({
-                 title: 'Cancelando Trámite',
-                 html: 'Actualizando estado a Cancelado...',
-                 allowOutsideClick: false,
-                 didOpen: () => { Swal.showLoading(); }
-            });
-
-            google.script.run
-                .withSuccessHandler(res => {
-                    if (res.success) {
-                        $('#modalGestionDocumentalIA').modal('hide');
-
-                        // 2. RECARGAR TABLA Y KPIS
-                        if(typeof ReloadRenovacionesTable === 'function') {
-                            ReloadRenovacionesTable();
-                        }
-
-                        // 3. CONFIRMACIÓN VISUAL
-                        Swal.fire({
-                            title: 'Caso Declinado',
-                            text: 'La renovación ha sido cancelada.',
-                            icon: 'info',
-                            timer: 2000,
-                            showConfirmButton: false
-                        });
-
-                    } else {
-                        Swal.fire('Error', res.message, 'error');
-                    }
-                })
-                .withFailureHandler(err => Swal.fire('Error', err.message, 'error'))
-                .processAnalystDecision(result.value);
-        }
-    });
+  if (!currentFullData || !currentFullData.dataLead) {
+    Swal.fire('Atención', 'No hay un caso cargado.', 'warning');
+    return;
+  }
+  window._pendingRenovacionDecisionPayload = {
+    decision: 'CANCELADA',
+    leadId: currentFullData.dataLead.poliza || currentFullData.dataLead.solicitud,
+    dataLead: currentFullData.dataLead,
+    observations: ''
+  };
+  openRenovacionCorreoOverlay('CANCELADA');
 };
 
 
@@ -771,6 +986,7 @@ window.cancelado = function () {
           showModuloGestionDocumental();
           var ReorganizedData = ReorganizeData(Data[1]);
           CreatePendingTable(ReorganizedData); // Esta función oculta el overlay internamente
+          $("#btnParamCorreoRenovacion").addClass("d-none");
         }
 
         // --- CASO 2: GESTIÓN DOCUMENTAL 2 (BROKERS) ---
@@ -778,6 +994,7 @@ window.cancelado = function () {
           navActivoGestionDocumental();
           showModuloGestionDocumental();
           CreatePendingTableBrokersInmobiliarias(Data[1]); // Esta función oculta el overlay internamente
+          $("#btnParamCorreoRenovacion").addClass("d-none");
         }
 
         // --- CASO 3: ANALISTA RENOVACIONES ---
@@ -787,6 +1004,7 @@ window.cancelado = function () {
           showModuloRenovaciones();
           UpdateRenovacionesUI();
           $("#overlay").hide();
+          $("#btnParamCorreoRenovacion").removeClass("d-none");
         }
 
       } else {
@@ -3360,8 +3578,202 @@ var docState = {
 const SCORE_UPLOAD = 14;
 const SCORE_VALIDATE = 6;
 const DOC_KEYS = ['poliza', 'cedula', 'comprobante', 'sarlaft', 'contrato', 'polizaAjuste'];
+var DOC_KEY_LABELS = {
+  poliza: 'Póliza',
+  cedula: 'Cédula / documento',
+  comprobante: 'Comprobante de pago',
+  sarlaft: 'SARLAFT',
+  contrato: 'Contrato',
+  polizaAjuste: 'Póliza con ajuste'
+};
 var currentClientDriveFiles = [];
+/** uids seleccionados para adjuntos al correo de renovación (solo fuentes ya cargadas en el flujo) */
+window._renovacionCorreoAdjuntosUids = [];
 baseCanonAntiguo = 0;
+
+function extractDriveIdFromUrlRenov(url) {
+  if (!url) return null;
+  var m = String(url).match(/[-\w]{25,}/);
+  return (m && m[0]) ? m[0] : null;
+}
+
+function construirListaAdjuntosDisponiblesCorreo() {
+  var items = [];
+  var seenDriveIds = {};
+
+  DOC_KEYS.forEach(function (key) {
+    var st = docState[key];
+    if (!st || st.isOmitted) return;
+    var titulo = DOC_KEY_LABELS[key] || key;
+    if (st.isDrive && st.url) {
+      var fid = extractDriveIdFromUrlRenov(st.url);
+      if (fid && !seenDriveIds[fid]) {
+        seenDriveIds[fid] = true;
+        var nm = ($('#name-' + key).text() || titulo).trim();
+        items.push({
+          uid: 'card-drive-' + key,
+          fileId: fid,
+          nombre: nm,
+          titulo: titulo,
+          origen: 'Tarjeta documental (Drive)'
+        });
+      }
+    } else if (st.file) {
+      items.push({
+        uid: 'card-local-' + key,
+        docKey: key,
+        nombre: st.file.name || titulo,
+        titulo: titulo,
+        origen: 'Tarjeta documental (equipo)'
+      });
+    }
+  });
+
+  if (currentClientDriveFiles && currentClientDriveFiles.length) {
+    currentClientDriveFiles.forEach(function (f, idx) {
+      var fid = null;
+      if (f.id && String(f.id).indexOf('legacy_') !== 0) {
+        fid = String(f.id).trim();
+      } else if (f.url) {
+        fid = extractDriveIdFromUrlRenov(f.url);
+      }
+      if (!fid || seenDriveIds[fid]) return;
+      seenDriveIds[fid] = true;
+      items.push({
+        uid: 'drive-list-' + idx,
+        fileId: fid,
+        nombre: f.name || 'documento',
+        titulo: f.name || 'Archivo Drive',
+        origen: f.context || 'Carpeta / historial'
+      });
+    });
+  }
+
+  return items;
+}
+
+function escapeHtmlRenovCorreoUi(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+function actualizarResumenAdjuntosCorreoRenovacion() {
+  var uids = window._renovacionCorreoAdjuntosUids || [];
+  var $r = $('#renovacionCorreoAdjuntosResumen');
+  if (!uids.length) {
+    $r.html('<span class="text-muted">Ningún adjunto seleccionado.</span>');
+    return;
+  }
+  var catalogo = construirListaAdjuntosDisponiblesCorreo();
+  var map = {};
+  catalogo.forEach(function (it) { map[it.uid] = it; });
+  var lis = [];
+  uids.forEach(function (u) {
+    var it = map[u];
+    if (it) {
+      lis.push('<li><span class="fw-semibold">' + escapeHtmlRenovCorreoUi(it.titulo) + '</span> — ' + escapeHtmlRenovCorreoUi(it.nombre) + ' <span class="text-muted">(' + escapeHtmlRenovCorreoUi(it.origen) + ')</span></li>');
+    }
+  });
+  if (!lis.length) {
+    $r.html('<span class="text-warning">La selección ya no está disponible; vuelva a elegir adjuntos.</span>');
+    return;
+  }
+  $r.html('<ul class="mb-0 ps-3">' + lis.join('') + '</ul>');
+}
+
+function abrirModalSeleccionAdjuntosCorreoRenovacion() {
+  var items = construirListaAdjuntosDisponiblesCorreo();
+  if (!items.length) {
+    Swal.fire({
+      icon: 'info',
+      title: 'Sin documentos disponibles',
+      text: 'No hay archivos vinculados en las tarjetas ni en el listado Drive de este caso. Gestione los documentos primero en el modal principal.'
+    });
+    return;
+  }
+  var prev = window._renovacionCorreoAdjuntosUids || [];
+  var html = '<div class="text-start renov-swal-adjuntos" style="max-height:380px;overflow-y:auto">';
+  html += '<p class="small text-muted mb-2">Marque los archivos que desea adjuntar al correo. Mismo origen que Smart Select (Drive e historial) más lo cargado en cada tarjeta.</p>';
+  items.forEach(function (it, i) {
+    var id = 'renov-adj-sw-' + i;
+    var checked = prev.indexOf(it.uid) >= 0 ? ' checked' : '';
+    var iconClass = it.docKey ? 'fas fa-laptop text-primary' : 'fab fa-google-drive text-success';
+    html += '<div class="d-flex align-items-start gap-2 border-bottom py-2">';
+    html += '<input type="checkbox" class="form-check-input renov-adj-cb mt-1 flex-shrink-0" id="' + id + '" data-uid="' + escapeHtmlRenovCorreoUi(it.uid) + '"' + checked + '>';
+    html += '<label class="form-check-label flex-grow-1 mb-0" for="' + id + '" style="cursor:pointer">';
+    html += '<i class="' + iconClass + ' me-1"></i>';
+    html += '<strong>' + escapeHtmlRenovCorreoUi(it.titulo) + '</strong>';
+    html += '<div class="small text-break text-muted">' + escapeHtmlRenovCorreoUi(it.nombre) + '</div>';
+    html += '<div class="small"><span class="badge bg-light text-dark border">' + escapeHtmlRenovCorreoUi(it.origen) + '</span></div>';
+    html += '</label></div>';
+  });
+  html += '</div>';
+
+  Swal.fire({
+    title: 'Adjuntos al correo',
+    html: html,
+    width: 640,
+    showCancelButton: true,
+    confirmButtonText: 'Guardar selección',
+    cancelButtonText: 'Cancelar',
+    focusConfirm: false,
+    preConfirm: function () {
+      var sel = [];
+      document.querySelectorAll('.renov-adj-cb:checked').forEach(function (cb) {
+        var u = cb.getAttribute('data-uid');
+        if (u) sel.push(u);
+      });
+      return sel;
+    }
+  }).then(function (result) {
+    if (result.isConfirmed && Array.isArray(result.value)) {
+      window._renovacionCorreoAdjuntosUids = result.value;
+      actualizarResumenAdjuntosCorreoRenovacion();
+    }
+  });
+}
+
+async function construirPayloadAdjuntosCorreoRenovacionAsync() {
+  var uids = window._renovacionCorreoAdjuntosUids || [];
+  if (!uids.length) return [];
+  var catalogo = construirListaAdjuntosDisponiblesCorreo();
+  var map = {};
+  catalogo.forEach(function (it) { map[it.uid] = it; });
+  var out = [];
+  var seenDrive = {};
+  var seenLocalKey = {};
+  for (var i = 0; i < uids.length; i++) {
+    var it = map[uids[i]];
+    if (!it) continue;
+    if (it.fileId) {
+      if (seenDrive[it.fileId]) continue;
+      seenDrive[it.fileId] = true;
+      out.push({
+        tipo: 'drive',
+        fileId: it.fileId,
+        nombre: (it.nombre || 'documento').substring(0, 180)
+      });
+    } else if (it.docKey && docState[it.docKey] && docState[it.docKey].file) {
+      if (seenLocalKey[it.docKey]) continue;
+      seenLocalKey[it.docKey] = true;
+      try {
+        var b64 = await readFileAsBase64(docState[it.docKey].file);
+        out.push({
+          tipo: 'base64',
+          nombre: (b64.name || it.nombre || 'documento').substring(0, 180),
+          mimeType: b64.mimeType || 'application/octet-stream',
+          data: b64.data
+        });
+      } catch (e) {
+        console.error('Adjunto local omitido', e);
+      }
+    }
+  }
+  return out;
+}
 
 function OpenModalRenovacion(dataEncoded) {
     try {
