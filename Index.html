@@ -97,6 +97,58 @@
       font-weight: 700;
     }
 
+    /* Renovaciones: mismo offset que .main-panel > .container (navbar fija del tema) */
+    .main-panel > #ModuleRenovaciones {
+      margin-top: 70px;
+      padding-left: 12px;
+      padding-right: 12px;
+      box-sizing: border-box;
+    }
+
+    @media (min-width: 768px) {
+      .main-panel > #ModuleRenovaciones {
+        padding-left: 24px;
+        padding-right: 24px;
+      }
+    }
+
+    .renovacion-correo-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 2000;
+      background: rgba(15, 23, 42, 0.82);
+      backdrop-filter: blur(6px);
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+      overflow: hidden;
+    }
+
+    .renovacion-correo-overlay.is-open {
+      display: flex !important;
+    }
+
+    .renovacion-correo-overlay .renovacion-correo-panel {
+      width: 100%;
+      max-width: 940px;
+      max-height: min(92vh, 880px);
+      border-radius: 16px;
+      overflow: hidden;
+      margin: 0;
+    }
+
+    .renovacion-correo-overlay .renovacion-correo-scroll {
+      flex: 1 1 auto;
+      min-height: 0;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    #renovacionCorreoCandidatosContainer .renov-correo-row:hover {
+      background: #f8f9fa;
+    }
+
 
 
 
@@ -560,33 +612,17 @@
                 </span>
               <h4 class="text-section">Modulos de Gestión</h4>
             </li>
-            <li id="ListModuleValidationDocs" class="nav-item collapsed pt-2 active" hidden>
-              <a id="ButtonCargarRegistrosValidacionDocumental" data-bs-toggle="collapse">
+            <li id="ListModuleGestionDocumental" class="nav-item collapsed pt-2 active">
+              <a href="#" id="ButtonMenuGestionDocumental">
                 <i class="fa-solid fa-file-circle-check fs-3"></i>
-                <p>Gestión Documental Nuevo</p>
+                <p>Gestión Documental</p>
               </a>
             </li>
-            <li id="ListModuleValidationDocs2" class="nav-item collapsed pt-2" hidden>
-              <a id="ButtonCargarRegistrosValidacionDocumental2" data-bs-toggle="collapse">
-                <i class="fa-solid fa-house fs-3"></i>
-                <p>Gestión Documental Brokers-Inmobiliarias</p>
-              </a>
-            </li>
-            <li class="nav-item">
-              <a data-bs-toggle="collapse" href="#sidebarRenovaciones" class="collapsed" aria-expanded="false">
-                <i class="fas fa-sync-alt"></i>
+            <li id="ListModuleRenovacionesNav" class="nav-item collapsed pt-2">
+              <a href="#" id="ButtonMenuRenovaciones">
+                <i class="fa-solid fa-sync-alt fs-3"></i>
                 <p>Renovaciones</p>
-                <span class="caret"></span>
               </a>
-              <div class="collapse" id="sidebarRenovaciones">
-                <ul class="nav nav-collapse">
-                  <li>
-                    <a href="#" id="ButtonMenuRenovaciones">
-                      <span class="sub-item">Gestión Renovaciones</span>
-                    </a>
-                  </li>
-                </ul>
-              </div>
             </li>
             <!-- <li id="ListModuleValidationDocsRenovacion" class="nav-item collapsed" hidden>
               <a id="ButtonCargarRegistrosValidacionDocumentalRenovacion" data-bs-toggle="collapse">
@@ -623,7 +659,7 @@
         <!-- End Navbar -->
       </div>
 
-      <div class="container">
+      <div class="container" id="ModuleGestionDocumental">
         <div class="page-inner">
           <div class="row justify-content-center">
             <div class="col-sm-6 col-md-3">
@@ -662,9 +698,9 @@
         </div>
       </div>
 
-      <div class="container-fluid" id="ModuleRenovaciones" hidden>
+      <div class="container-fluid pt-3" id="ModuleRenovaciones" hidden>
 
-        <div class="row mt-4">
+        <div class="row mt-2">
           <div class="col-md-4">
             <div class="card card-stats card-futuristic card-expedicion" onclick="FilterRenovaciones('pendientes')">
               <div class="card-body">
@@ -727,8 +763,12 @@
         <div class="row">
           <div class="col-md-12">
             <div class="card">
-              <div class="card-header">
-                <h4 class="card-title">Gestión de Pólizas</h4>
+              <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
+                <h4 class="card-title mb-0">Gestión de Pólizas</h4>
+                <button type="button" class="btn btn-sm btn-outline-primary d-none" id="btnParamCorreoRenovacion"
+                  onclick="abrirModalParamCorreoRenovacion()">
+                  <i class="bi bi-envelope-gear me-1"></i>Parámetros correo renovación
+                </button>
               </div>
               <div class="card-body">
                 <div class="table-responsive">
@@ -1450,6 +1490,121 @@
               </div>
             </div>
 
+          </div>
+        </div>
+      </div>
+
+      <!-- Parámetros correo renovación (US-01) — vista CRM -->
+      <div class="modal fade" id="modalParamCorreoRenovacion" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable">
+          <div class="modal-content" style="border-radius: 14px;">
+            <div class="modal-header" style="background: linear-gradient(135deg, #003366 0%, #0055aa 100%); color: #fff;">
+              <h5 class="modal-title"><i class="bi bi-sliders me-2"></i>Correos por segmento — Renovaciones</h5>
+              <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+            </div>
+            <div class="modal-body">
+              <p class="text-muted small">Edite destinatarios parametrizados (clave fija). Los cambios se guardan en la hoja <strong>Correo_Renovacion_Param</strong> del WareHouse (mismo archivo que Gestion).</p>
+              <div class="table-responsive">
+                <table class="table table-sm table-bordered align-middle" id="tableParamCorreoRenovacion">
+                  <thead class="table-light">
+                    <tr>
+                      <th>Clave</th>
+                      <th>Nombre</th>
+                      <th>Correo</th>
+                      <th>Especialidad</th>
+                    </tr>
+                  </thead>
+                  <tbody id="tbodyParamCorreoRenovacion"></tbody>
+                </table>
+              </div>
+            </div>
+            <div class="modal-footer">
+              <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cerrar</button>
+              <button type="button" class="btn btn-primary" onclick="guardarTablaParamCorreoRenovacion()">
+                <i class="bi bi-save me-1"></i>Guardar cambios
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Envío correo renovación: centrado en pantalla, scroll solo dentro del panel -->
+      <div id="renovacionCorreoOverlay" class="renovacion-correo-overlay" aria-hidden="true">
+        <div class="renovacion-correo-panel card shadow-lg border-0 d-flex flex-column">
+          <div class="card-header text-white d-flex justify-content-between align-items-center py-3 flex-shrink-0"
+            style="background: linear-gradient(135deg, #003366 0%, #0055aa 100%); border-radius: 0;">
+            <div>
+              <h5 class="mb-0 fw-bold" id="renovacionCorreoTitulo">Vista previa del correo</h5>
+              <small class="opacity-75">Elija destinatarios en copia y apruebe el envío manualmente</small>
+            </div>
+            <span class="badge bg-light text-dark" id="renovacionCorreoSegmentoBadge">—</span>
+          </div>
+          <div class="renovacion-correo-scroll p-3 p-md-4">
+            <div id="rowRenovacionCorreoMotivo" class="mb-3 d-none">
+              <label class="form-label fw-bold text-danger">Motivo / observaciones <span class="text-muted fw-normal">(obligatorio)</span></label>
+              <textarea class="form-control" id="renovacionCorreoMotivo" rows="3"
+                placeholder="Describa el motivo de la devolución o por qué no procede la renovación..."></textarea>
+            </div>
+            <div id="renovacionCorreoAsignacionCorreccion" class="alert alert-info py-2 px-3 mb-3 d-none small border-0" style="background: #e7f1ff;" role="status"></div>
+            <div class="row g-3 mb-3">
+              <div class="col-md-6">
+                <label class="form-label small fw-bold text-muted">Para</label>
+                <div class="form-control bg-light small" id="renovacionCorreoPara" style="min-height: 38px;">—</div>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label small fw-bold text-muted">Asunto</label>
+                <div class="form-control bg-light small" id="renovacionCorreoAsunto" style="min-height: 38px;">—</div>
+              </div>
+            </div>
+            <div class="mb-3">
+              <label class="form-label small fw-bold mb-1">Copia (CC) — contactos de la póliza y reglas</label>
+              <p class="text-muted small mb-2">Marque o desmarque a quién recibe copia. Incluye correos detectados en la fila (propietario, bróker, inmobiliaria, etc.) y los de reglas por segmento.</p>
+              <div id="renovacionCorreoCandidatosContainer" class="border rounded bg-white"></div>
+            </div>
+            <div class="row g-2 mb-3">
+              <div class="col-md-6">
+                <label class="form-label small" for="renovacionCorreoExtra1">Correo adicional 1 (CC)</label>
+                <input type="email" class="form-control form-control-sm" id="renovacionCorreoExtra1" placeholder="opcional@ejemplo.com">
+              </div>
+              <div class="col-md-6">
+                <label class="form-label small" for="renovacionCorreoExtra2">Correo adicional 2 (CC)</label>
+                <input type="email" class="form-control form-control-sm" id="renovacionCorreoExtra2" placeholder="opcional@ejemplo.com">
+              </div>
+            </div>
+            <div class="mb-3 pb-3 border-bottom">
+              <label class="form-label small fw-bold">Adjuntos al correo</label>
+              <p class="text-muted small mb-2 mb-md-1">Solo documentos que ya están en este flujo: tarjetas de gestión documental (PC o Drive) y el listado Drive / historial del caso. No se suben archivos nuevos desde aquí.</p>
+              <button type="button" class="btn btn-outline-secondary btn-sm" id="btnRenovacionCorreoAdjuntos">
+                <i class="bi bi-paperclip me-1"></i>Seleccionar documentos adjuntos
+              </button>
+              <div id="renovacionCorreoAdjuntosResumen" class="small mt-2 text-muted"></div>
+            </div>
+            <div class="d-flex flex-wrap gap-2 mb-3 align-items-center">
+              <button type="button" class="btn btn-outline-primary btn-sm" id="btnRenovacionCorreoRefreshPreview">
+                <i class="bi bi-arrow-clockwise me-1"></i>Actualizar vista previa
+              </button>
+              <button type="button" class="btn btn-outline-secondary btn-sm" id="btnRenovacionCorreoMarcarRegla">
+                <i class="bi bi-check2-square me-1"></i>Solo reglas de segmento
+              </button>
+              <small class="text-muted">Las notas del analista del modal principal se reflejan en el cuerpo del correo cuando aplica.</small>
+            </div>
+            <label class="form-label small fw-bold">Vista previa del mensaje</label>
+            <div class="border rounded overflow-hidden bg-white">
+              <iframe id="renovacionCorreoIframe" title="Vista previa correo" class="w-100" style="min-height: 260px; border: 0;"></iframe>
+            </div>
+          </div>
+          <div class="card-footer bg-white d-flex flex-wrap justify-content-between align-items-center gap-2 py-3 border-top flex-shrink-0">
+            <button type="button" class="btn btn-outline-secondary" id="btnRenovacionCorreoCerrar">
+              <i class="bi bi-x-lg me-1"></i>Cerrar
+            </button>
+            <div class="d-flex flex-wrap gap-2 ms-auto">
+              <button type="button" class="btn btn-outline-warning btn-sm" id="btnRenovacionCorreoValidar" title="Comprueba destinatarios, HTML y adjuntos en el servidor sin Gmail ni hoja">
+                <i class="bi bi-shield-check me-1"></i>Validar sin enviar
+              </button>
+              <button type="button" class="btn btn-success px-4" id="btnRenovacionCorreoEnviar">
+                <i class="bi bi-send-check me-1"></i>Aprobar envío y procesar gestión
+              </button>
+            </div>
           </div>
         </div>
       </div>
