@@ -13,7 +13,6 @@
     rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/@n8n/chat/dist/style.css" rel="stylesheet" />
 
-  <script src="https://unpkg.com/@lottiefiles/lottie-player@latest/dist/lottie-player.js"></script>
   <script src="https://unpkg.com/@dotlottie/player-component@latest/dist/dotlottie-player.mjs" type="module"></script>
   <!-- Fonts and icons -->
   <?!= include("assets/css/overlay.css");?>
@@ -98,7 +97,7 @@
     }
 
     /* Renovaciones: mismo offset que .main-panel > .container (navbar fija del tema) */
-    .main-panel > #ModuleRenovaciones {
+    .main-panel>#ModuleRenovaciones {
       margin-top: 70px;
       padding-left: 12px;
       padding-right: 12px;
@@ -106,7 +105,7 @@
     }
 
     @media (min-width: 768px) {
-      .main-panel > #ModuleRenovaciones {
+      .main-panel>#ModuleRenovaciones {
         padding-left: 24px;
         padding-right: 24px;
       }
@@ -122,7 +121,6 @@
       align-items: center;
       justify-content: center;
       padding: 1rem;
-      overflow: hidden;
     }
 
     .renovacion-correo-overlay.is-open {
@@ -134,7 +132,6 @@
       max-width: 940px;
       max-height: min(92vh, 880px);
       border-radius: 16px;
-      overflow: hidden;
       margin: 0;
     }
 
@@ -264,7 +261,6 @@
       box-shadow: var(--shadow-soft);
       margin-bottom: 1.5rem;
       position: relative;
-      overflow: hidden;
       transition: all 0.3s ease;
     }
 
@@ -539,7 +535,7 @@
 </head>
 
 <body>
-  <div id="overlay" class="overlay justify-content-center row w-100 align-content-center">
+  <div id="overlay" style="display:none;" class="overlay justify-content-center row w-100 align-content-center">
     <div class="col-12 col-md-4">
       <div class="card rounded-5 bg-black shadow-lg border border-dark">
         <div class="card-body d-flex justify-content-center align-content-center text-center mt--1">
@@ -797,7 +793,7 @@
 
       <!-- Modal Gestión Documental con IA -->
       <div class="modal fade" id="modalGestionDocumentalIA" tabindex="-1"
-        aria-labelledby="modalGestionDocumentalIALabel" aria-hidden="true">
+        aria-labelledby="modalGestionDocumentalIALabel" aria-hidden="true" data-bs-focus="false">
         <div class="modal-dialog modal-dialog-custom">
           <div class="modal-content modal-content-custom">
 
@@ -1462,7 +1458,7 @@
 
                   <div class="col-md-12">
                     <label class="form-label fw-bold">Notas del Analista (Opcional)</label>
-                    <textarea class="form-control" id="notasAnalista" rows="3" placeholder="Agrega comentarios u observaciones adicionales sobre esta verificación..."></textarea>
+                    <textarea class="form-control" id="notasAnalista" rows="3" placeholder="Agrega comentarios u observaciones adicionales sobre esta verificación..." style="position: relative; z-index: 1060;"></textarea>
                   </div>
 
                   <div class="col-md-12">
@@ -1498,12 +1494,14 @@
       <div class="modal fade" id="modalParamCorreoRenovacion" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-lg modal-dialog-scrollable">
           <div class="modal-content" style="border-radius: 14px;">
-            <div class="modal-header" style="background: linear-gradient(135deg, #003366 0%, #0055aa 100%); color: #fff;">
+            <div class="modal-header"
+              style="background: linear-gradient(135deg, #003366 0%, #0055aa 100%); color: #fff;">
               <h5 class="modal-title"><i class="bi bi-sliders me-2"></i>Correos por segmento — Renovaciones</h5>
               <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Cerrar"></button>
             </div>
             <div class="modal-body">
-              <p class="text-muted small">Edite destinatarios parametrizados (clave fija). Los cambios se guardan en la hoja <strong>Correo_Renovacion_Param</strong> del WareHouse (mismo archivo que Gestion).</p>
+              <p class="text-muted small">Edite destinatarios parametrizados (clave fija). Los cambios se guardan en la
+                hoja <strong>Correo_Renovacion_Param</strong> del WareHouse (mismo archivo que Gestion).</p>
               <div class="table-responsive">
                 <table class="table table-sm table-bordered align-middle" id="tableParamCorreoRenovacion">
                   <thead class="table-light">
@@ -1541,24 +1539,26 @@
           </div>
           <div class="renovacion-correo-scroll p-3 p-md-4">
             <div id="rowRenovacionCorreoMotivo" class="mb-3 d-none">
-              <label class="form-label fw-bold text-danger">Motivo / observaciones <span class="text-muted fw-normal">(obligatorio)</span></label>
+              <label class="form-label fw-bold text-danger" for="renovacionCorreoMotivo">Motivo / observaciones <span class="text-muted fw-normal">(obligatorio)</span></label>
               <textarea class="form-control" id="renovacionCorreoMotivo" rows="3"
                 placeholder="Describa el motivo de la devolución o por qué no procede la renovación..."></textarea>
             </div>
-            <div id="renovacionCorreoAsignacionCorreccion" class="alert alert-info py-2 px-3 mb-3 d-none small border-0" style="background: #e7f1ff;" role="status"></div>
+            <div id="renovacionCorreoAsignacionCorreccion" class="alert alert-info py-2 px-3 mb-3 d-none small border-0"
+              style="background: #e7f1ff;" role="status"></div>
             <div class="row g-3 mb-3">
               <div class="col-md-6">
                 <label class="form-label small fw-bold text-muted">Para</label>
-                <div class="form-control bg-light small" id="renovacionCorreoPara" style="min-height: 38px;">—</div>
+                <input type="text" class="form-control small" id="renovacionCorreoPara" style="min-height: 38px;" value="">
               </div>
               <div class="col-md-6">
                 <label class="form-label small fw-bold text-muted">Asunto</label>
-                <div class="form-control bg-light small" id="renovacionCorreoAsunto" style="min-height: 38px;">—</div>
+                <input type="text" class="form-control small" id="renovacionCorreoAsunto" style="min-height: 38px;" value="">
               </div>
             </div>
             <div class="mb-3">
               <label class="form-label small fw-bold mb-1">Copia (CC) — contactos de la póliza y reglas</label>
-              <p class="text-muted small mb-2">Marque o desmarque a quién recibe copia. Incluye correos detectados en la fila (propietario, bróker, inmobiliaria, etc.) y los de reglas por segmento.</p>
+              <p class="text-muted small mb-2">Marque o desmarque a quién recibe copia. Incluye correos detectados en la
+                fila (propietario, bróker, inmobiliaria, etc.) y los de reglas por segmento.</p>
               <div id="renovacionCorreoCandidatosContainer" class="border rounded bg-white"></div>
             </div>
             <div class="row g-2 mb-3">
@@ -1573,7 +1573,9 @@
             </div>
             <div class="mb-3 pb-3 border-bottom">
               <label class="form-label small fw-bold">Adjuntos al correo</label>
-              <p class="text-muted small mb-2 mb-md-1">Solo documentos que ya están en este flujo: tarjetas de gestión documental (PC o Drive) y el listado Drive / historial del caso. No se suben archivos nuevos desde aquí.</p>
+              <p class="text-muted small mb-2 mb-md-1">Solo documentos que ya están en este flujo: tarjetas de gestión
+                documental (PC o Drive) y el listado Drive / historial del caso. No se suben archivos nuevos desde aquí.
+              </p>
               <button type="button" class="btn btn-outline-secondary btn-sm" id="btnRenovacionCorreoAdjuntos">
                 <i class="bi bi-paperclip me-1"></i>Seleccionar documentos adjuntos
               </button>
@@ -1589,11 +1591,14 @@
               <small class="text-muted">Las notas del analista del modal principal se reflejan en el cuerpo del correo cuando aplica.</small>
             </div>
             <label class="form-label small fw-bold">Vista previa del mensaje</label>
-            <div class="border rounded overflow-hidden bg-white">
-              <iframe id="renovacionCorreoIframe" title="Vista previa correo" class="w-100" style="min-height: 260px; border: 0;"></iframe>
+            <div class="border rounded bg-white" style="border-radius: 4px; overflow: visible;">
+              <iframe id="renovacionCorreoIframe" title="Vista previa correo" class="w-100"
+                style="min-height: 260px; border: 0; border-radius: 4px; display: block;">
+              </iframe>
             </div>
           </div>
-          <div class="card-footer bg-white d-flex flex-wrap justify-content-between align-items-center gap-2 py-3 border-top flex-shrink-0">
+          <div
+            class="card-footer bg-white d-flex flex-wrap justify-content-between align-items-center gap-2 py-3 border-top flex-shrink-0">
             <button type="button" class="btn btn-outline-secondary" id="btnRenovacionCorreoCerrar">
               <i class="bi bi-x-lg me-1"></i>Cerrar
             </button>
