@@ -16,6 +16,13 @@
 
 
   $(document).ready(function () {
+    // Solución para Bootstrap 5: Permite escribir en campos fuera del modal (Panel de Correo y SweetAlerts)
+    document.addEventListener('focusin', (e) => {
+      if (e.target.closest('.renovacion-correo-overlay') || e.target.closest('.swal2-container')) {
+        e.stopImmediatePropagation();
+      }
+    }, true);
+
 
     window.currentLeadData = null;
 
@@ -226,7 +233,9 @@
         segmentoSheetColumn: ctx.segmentoSheetColumn,
         notasAnalista: $('#notasAnalista').val() || '',
         leadSelect: (currentFullData && currentFullData.leadSelect) ? currentFullData.leadSelect : {},
-        ccSeleccionados: getSeleccionadosCorreoRenovacion()
+        ccSeleccionados: getSeleccionadosCorreoRenovacion(),
+        manualPara: $('#renovacionCorreoPara').val(),
+        manualAsunto: $('#renovacionCorreoAsunto').val()
       });
       if (tipo === 'CORRECTION') envio.segmento = resolverSegmentoParaCorreccion();
       return { envio: envio };
@@ -359,7 +368,9 @@
         observations: obsForPreview,
         notasAnalista: notas,
         correoAdicional1: $('#renovacionCorreoExtra1').val(),
-        correoAdicional2: $('#renovacionCorreoExtra2').val()
+        correoAdicional2: $('#renovacionCorreoExtra2').val(),
+        manualPara: primeraCarga ? null : $('#renovacionCorreoPara').val(),
+        manualAsunto: primeraCarga ? null : $('#renovacionCorreoAsunto').val()
       };
       var hayCbs = $('#renovacionCorreoCandidatosContainer .renov-correo-cb').length > 0;
       if (!primeraCarga && hayCbs) {
@@ -375,8 +386,8 @@
           Swal.fire('Vista previa', (r && r.message) ? r.message : 'No se pudo generar la vista previa.', 'error');
           return;
         }
-        $('#renovacionCorreoPara').text(r.para || '—');
-        $('#renovacionCorreoAsunto').text(r.subject || '—');
+        $('#renovacionCorreoPara').val(r.para || '');
+        $('#renovacionCorreoAsunto').val(r.subject || '');
         $('#renovacionCorreoSegmentoBadge').text(r.segmentoNorm || '—');
         renderRenovacionCorreoAsignacionPanel(tipo, r);
         renderRenovacionCorreoCandidatos(r.candidatos || []);
@@ -488,15 +499,79 @@
             cerrarRenovacionCorreoOverlay();
             $('#modalGestionDocumentalIA').modal('hide');
             if (typeof ReloadRenovacionesTable === 'function') ReloadRenovacionesTable();
-            Swal.fire({ icon: 'success', title: 'Listo', text: res.message || 'Proceso completado.', timer: 2200, showConfirmButton: false });
+            var adjNames = (res.correo && res.correo.adjuntos && res.correo.adjuntos.length)
+              ? res.correo.adjuntos : [];
+            var msgHtml = escapeHtmlRenovCorreoUi(res.message || 'Proceso completado.');
+            if (adjNames.length) {
+              msgHtml += '<br><small class="text-muted" style="display:block;margin-top:6px">Adjuntando: ' +
+                adjNames.map(function(n){ return escapeHtmlRenovCorreoUi(n); }).join(', ') + '</small>';
+            }
+            Swal.fire({ icon: 'success', title: 'Listo', html: msgHtml, timer: 3000, showConfirmButton: false });
           } else {
-            Swal.fire('Error', (res && res.message) ? res.message : 'Fallo al procesar.', 'error');
+            var errMsg = (res && res.message) ? res.message : 'Fallo al procesar.';
+            var esErrorSoloCorreo = errMsg.indexOf('falló el envío del correo') >= 0;
+            if (esErrorSoloCorreo) {
+              Swal.fire({
+                icon: 'warning',
+                title: 'Gestión guardada — fallo de envío',
+                html: escapeHtmlRenovCorreoUi(errMsg) +
+                  '<br><br><small class="text-muted">La gestión ya fue registrada en la hoja. ' +
+                  'Puede reintentar solo el envío sin modificar el registro.</small>',
+                showCancelButton: true,
+                confirmButtonText: 'Reintentar envío',
+                cancelButtonText: 'Cerrar',
+                confirmButtonColor: '#0055aa'
+              }).then(function (swalRes) {
+                if (swalRes.isConfirmed) {
+                  _reintentarEnvioCorreoRenovacion(envio);
+                }
+              });
+            } else {
+              Swal.fire('Error', errMsg, 'error');
+            }
           }
         } catch (err) {
           Swal.close();
           Swal.fire('Error', err.message || String(err), 'error');
         }
       })();
+    }
+
+    function _reintentarEnvioCorreoRenovacion(envioOriginal) {
+      var payload = Object.assign({}, envioOriginal, { soloReintentarCorreo: true });
+      Swal.fire({
+        title: 'Reintentando envío del correo…',
+        html: 'Por favor espere.',
+        allowOutsideClick: false,
+        didOpen: function () { Swal.showLoading(); }
+      });
+      googleScriptRunAsync('procesarDecisionAnalistaConCorreo', payload).then(function (res) {
+        Swal.close();
+        if (res && res.success) {
+          cerrarRenovacionCorreoOverlay();
+          $('#modalGestionDocumentalIA').modal('hide');
+          if (typeof ReloadRenovacionesTable === 'function') ReloadRenovacionesTable();
+          var adjNames = (res.correo && res.correo.adjuntos && res.correo.adjuntos.length)
+            ? res.correo.adjuntos : [];
+          var msgHtml = escapeHtmlRenovCorreoUi(res.message || 'Correo enviado correctamente.');
+          if (adjNames.length) {
+            msgHtml += '<br><small class="text-muted" style="display:block;margin-top:6px">Adjuntando: ' +
+              adjNames.map(function(n){ return escapeHtmlRenovCorreoUi(n); }).join(', ') + '</small>';
+          }
+          Swal.fire({ icon: 'success', title: 'Correo enviado', html: msgHtml, timer: 3000, showConfirmButton: false });
+        } else {
+          var errMsg2 = (res && res.message) ? res.message : 'Fallo al reenviar el correo.';
+          Swal.fire({
+            icon: 'error',
+            title: 'Error al reenviar',
+            html: escapeHtmlRenovCorreoUi(errMsg2) +
+              '<br><br><small class="text-muted">Puede intentar de nuevo con el botón Enviar en el panel del correo.</small>'
+          });
+        }
+      }).catch(function (err) {
+        Swal.close();
+        Swal.fire('Error', err.message || String(err), 'error');
+      });
     }
 
     $(function () {
@@ -974,6 +1049,11 @@ window.cancelado = function () {
 
 
     function ResponseFindUser(Data) {
+      if (!Data) {
+        $("#overlay").hide();
+        $('#lock-screen').show();
+        return;
+      }
       if (Data[0] === "Autenticado") {
         LastGetDataUserResponse = Data;
         $('#lock-screen').hide();
@@ -5020,5 +5100,6 @@ window.ReloadRenovacionesTable = function() {
       event.preventDefault();
     }
   };
+
 
 </script>
