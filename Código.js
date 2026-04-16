@@ -17,10 +17,6 @@ const PolizasAntiguas = SpreadsheetApp.openById("1wxqoUCggSYXE0vOUHdgLnwDYfBnlAT
 
 const DataWereHouse = SpreadsheetApp.openById("1_Hi5iunWuSrsT4V2ApWKIka6sdYyz7Mo_atSrz_uxhc");
 const DataGestion = DataWereHouse.getSheetByName("Gestion");
-/** Parametrización correos renovación (US-01): misma hoja WareHouse que Gestion / CRM Leads */
-const SHEET_CORREO_RENOV_PARAM = "Correo_Renovacion_Param";
-/** Columna I en hoja JSON renovaciones: historial de envíos de correo (US marca envío) */
-const COL_LOG_CORREO_RENOV = 9;
 
 
 function resolveClientReference(policyNumber) {
@@ -405,38 +401,25 @@ function processAnalystDecision(payload) {
         case 'CANCELADA': nuevoEstado = "Cancelado"; break;
         case 'REVIEWED': nuevoEstado = "Caso Revisado"; break;
         case 'CORRECTION':
-          nuevoAsesor = getNewLeadAssignment(payload.segmento, payload.dataLead) || "sin.asignar@segurosbolivar.com";
-          sheet.getRange(rowIndex, 3).setValue(nuevoAsesor);
+          nuevoAsesor = getNewLeadAssignment(payload.segmento) || "sin.asignar@segurosbolivar.com";
+          sheet.getRange(rowIndex, 3).setValue(nuevoAsesor);  
           break;
       }
       sheet.getRange(rowIndex, 5).setValue(nuevoEstado);
 
       let jsonCell = sheet.getRange(rowIndex, 6);
-      let hayManual = false;
-      if (payload.manualUpdates && typeof payload.manualUpdates === "object") {
-        for (const mk in payload.manualUpdates) {
-          if (Object.prototype.hasOwnProperty.call(payload.manualUpdates, mk)) {
-            hayManual = true;
-            break;
-          }
-        }
+      let jsonActual = {};
+      try {
+        jsonActual = JSON.parse(jsonCell.getValue());
+      } catch (e) {
+        jsonActual = payload.dataLead || {};
       }
-      const hayDeltaJson = Object.keys(urlsFinales).length > 0 || hayManual;
-      const correccionSoloTipificacion = payload.decision === "CORRECTION" && !hayDeltaJson;
 
-      if (!correccionSoloTipificacion) {
-        let jsonActual = {};
-        try {
-          jsonActual = JSON.parse(jsonCell.getValue());
-        } catch (e) {
-          jsonActual = payload.dataLead || {};
-        }
-        Object.assign(jsonActual, urlsFinales);
-        if (payload.manualUpdates) {
-          Object.assign(jsonActual, payload.manualUpdates);
-        }
-        jsonCell.setValue(JSON.stringify(jsonActual));
+      Object.assign(jsonActual, urlsFinales);
+      if (payload.manualUpdates) {
+        Object.assign(jsonActual, payload.manualUpdates);
       }
+      jsonCell.setValue(JSON.stringify(jsonActual));
       let cellObs = sheet.getRange(rowIndex, 7);
       let historial = [];
       try {
@@ -466,178 +449,301 @@ function processAnalystDecision(payload) {
   }
 }
 
-function GetDataUser() {
-  var UserMail = Session.getActiveUser().getEmail();
-  Logger.log(UserMail)
-  let Status;
-  let DataRange = SheetConsolidado.getRange("A2:BC" + SheetConsolidado.getLastRow()).getDisplayValues();
-  let DataRangeUserPending = [];
-  let Rows = SheetAssignment.getRange("A:A").createTextFinder(UserMail).ignoreDiacritics(true).matchEntireCell(true).ignoreDiacritics(true).findPrevious();
-
-
-
-  if (Rows != null) {
-    Status = "Autenticado";
-    let FilaDataRol = SheetAssignment.getRange("A:A").createTextFinder(UserMail).matchEntireCell(true).ignoreDiacritics(true).findPrevious().getRow();
-    let Rol = SheetAssignment.getRange("C" + FilaDataRol).getDisplayValue();
-    console.log
-    if (Rol == "Gestión Documental") {
-      DataRange.filter(function (DataRange) {
-        let Validation = DataRange.indexOf("Pendiente Validación Documental");
-        let ValidationCorrecion = DataRange.indexOf("Pendiente Corrección Documental");
-        let Validation2 = DataRange[54].indexOf(UserMail);
-        if ((Validation > -1 || ValidationCorrecion > -1) && Validation2 > -1) {
-          DataRangeUserPending.push([DataRange[0], DataRange[4], DataRange[8], DataRange[24], DataRange[26], "Gestión", DataRange[11], DataRange[12], DataRange[1], DataRange[3], DataRange[5], DataRange[9], DataRange[10], DataRange[13], DataRange[14], DataRange[15], DataRange[17], DataRange[19], DataRange[20], DataRange[21], DataRange[22], DataRange[23], DataRange[16], DataRange[45], DataRange[7], DataRange[37]]);
-        }
-      });
-      console.log(DataRangeUserPending)
-      return [Status, DataRangeUserPending, UserMail, Rol];
-    } else if (Rol == "Gestión Documental 2") {
-      let data = GetDataBrokersYInmobiliarias();
-      return [Status, data, UserMail, Rol];
-
-
-    } else if (Rol == "Analista Renovaciones") {
-      let dataUpd = Renovaciones.getRange("A2:H" + Renovaciones.getLastRow()).getDisplayValues();
-      let misRegistros = dataUpd.filter(row =>
-        row[2] && row[2].toString().trim().toLowerCase() === UserMail.trim().toLowerCase()
-      );
-      let todosMisLeads = misRegistros.map(row => {
-        const fechaIngreso = row[0];
-        const registroRaw = row[1]; // Col B
-        const nombreAgente = row[2];
-        const etapaFunel = row[3];
-        const estadoGestion = row[4]; // Col E (El estado clave)
-        const dataGestionRaw = row[5]; // Col F
-        const historiaRaw = row[6]; // Col G
-
-        let historialGestion = [];
-        if (historiaRaw && String(historiaRaw).trim() !== "") {
-          let cleanHistoryString = String(historiaRaw).trim();
-          if (cleanHistoryString.startsWith(")]}',")) {
-            cleanHistoryString = cleanHistoryString.substring(5);
-          }
-          try {
-            let parsed = JSON.parse(cleanHistoryString);
-            historialGestion = Array.isArray(parsed) ? parsed : [parsed];
-          } catch (e) {
-            Logger.log("Error historial: " + e.message);
-            historialGestion = [];
-          }
-        }
-
-        let leadSelect = {};
-        try {
-          let cleanGestion = String(dataGestionRaw).trim().replace(/\bNaN\b/g, "null");
-          leadSelect = JSON.parse(cleanGestion);
-        } catch (e) {
-          leadSelect = { error: "JSON Gestión inválido" };
-        }
-        let dataLead = {};
-        try {
-          let cleanLead = String(registroRaw).trim().replace(/\bNaN\b/g, "null");
-          dataLead = JSON.parse(cleanLead);
-        } catch (e) {
-          dataLead = { error: "JSON Lead inválido" };
-        }
-        return {
-          fechaIngreso: fechaIngreso,
-          leadSelect: leadSelect,
-          dataLead: dataLead, // OJO: Antes lo llamabas strLead o dataLead, lo unifiqué aquí
-          nombreAgente: nombreAgente,
-          etapaFunel: etapaFunel,
-          estadoGestion: estadoGestion,
-          historialGestiones: historialGestion
-        };
-      });
-
-      let dataAnalitic = todosMisLeads.filter(item => item.estadoGestion === "Enviar a Expedicion" || item.estadoGestion === "Autogestionado" || item.estadoGestion === "Caso Revisado");
-      let dataEspecial = todosMisLeads.filter(item => item.estadoGestion === "Caso Especial");
-      let polizasRenovadas = todosMisLeads.filter(item => item.estadoGestion === "Poliza Renovada" || item.estadoGestion === "Expedido"); // 
-      console.log(`Analitic: ${dataAnalitic.length}, Especial: ${dataEspecial.length}, Renovadas: ${polizasRenovadas.length}`);
-
-      return [
-        Status,
-        {
-          pendientes: dataAnalitic,
-          especiales: dataEspecial,
-          renovadas: polizasRenovadas
-        },
-        UserMail,
-        Rol
-      ];
-    }
-  } else {
-    Status = "No Autenticado";
-    return [Status, "Null"];
+function _extraerPlantillaCorreoHtml_(tipo) {
+  var html = HtmlService.createHtmlOutputFromFile("Indice_Plantillas_Correo").getContent();
+  var needle = 'id="tpl-' + tipo + '"';
+  var i = html.indexOf(needle);
+  if (i < 0) {
+    needle = "id='tpl-" + tipo + "'";
+    i = html.indexOf(needle);
   }
+  if (i < 0) throw new Error("Plantilla tpl-" + tipo + " no encontrada");
+  var start = html.indexOf(">", i) + 1;
+  var end = html.indexOf("</script>", start);
+  if (end < 0) throw new Error("Plantilla inválida");
+  return html.substring(start, end).trim();
 }
 
-/**
- * Cola en hoja Gestion (WareHouse): CorreccionesBI vs Renovations.
- * Misma regla que segmento normalizado del flujo de renovaciones.
- */
-function colaGestionCorreccionPorSegmentoNorm_(segmentoNorm) {
-  var u = String(segmentoNorm || "").toUpperCase().trim();
-  if (u === "BROKER" || u === "INMOBILIARIA") return "CorreccionesBI";
-  return "Renovations";
+function _escapeHtmlRenovacionCorreo_(s) {
+  if (s == null || s === undefined) return "";
+  return String(s)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
 }
 
-/**
- * @param {string} [segmento] prioridad sobre dataLead.segmento para tipificar la cola
- * @param {object} [dataLead] respaldo si segmento viene vacío (misma lógica que normalizeSegmentoRenovacion_)
- */
-function getNewLeadAssignment(segmento, dataLead) {
-  var dl = dataLead && typeof dataLead === "object" ? Object.assign({}, dataLead) : {};
-  if (segmento != null && String(segmento).trim() !== "") {
-    dl.segmento = segmento;
+function _buildDetalleGestionRenovacionHtml_(dataLead, leadSelect, nombreAgente) {
+  var dl = dataLead || {};
+  var ls = leadSelect || {};
+  var rows = [
+    ["Póliza", dl.poliza || "—"],
+    ["Asegurado", dl.asegurado || "—"],
+    ["Documento", dl.documento || "—"],
+    ["Segmento", dl.segmento || "—"],
+    ["Correo titular", dl.email || dl.emailBrIn || "—"],
+    ["Analista (hoja)", nombreAgente || "—"],
+    ["Estado", ls.estadoGestion || dl.estadoGestion || "—"]
+  ];
+  var buf = '<table style="border-collapse:collapse;width:100%;font-size:14px;">';
+  for (var r = 0; r < rows.length; r++) {
+    buf += '<tr><td style="padding:6px 8px;border:1px solid #dfe6e9;background:#f8f9fa;font-weight:600;color:#003366;width:40%;">' +
+      _escapeHtmlRenovacionCorreo_(rows[r][0]) + "</td>";
+    buf += '<td style="padding:6px 8px;border:1px solid #dfe6e9;">' + _escapeHtmlRenovacionCorreo_(rows[r][1]) + "</td></tr>";
   }
-  var segNorm = normalizeSegmentoRenovacion_(dl, null);
-  var gestion = colaGestionCorreccionPorSegmentoNorm_(segNorm);
-  var asignacion = AssignLead(gestion);
-  return asignacion && asignacion.email ? String(asignacion.email).trim() : null;
+  buf += "</table>";
+  return buf;
 }
 
-function getUserDataFilteredForDeal_(deal) {
-  var userDataleads = DataGestion.getRange("A1:K" + DataGestion.getLastRow()).getDisplayValues();
-  var userData = [];
-  if (deal === "Renovations") {
-    userData = userDataleads.filter(function (row) {
-      return row[3] === "Renovations";
-    });
-  } else if (deal === "Sales") {
-    userData = userDataleads.filter(function (row) {
-      return row[3] === "Seguro de Vida" || row[3] === "Seguro de Desempleo";
-    });
-  } else if (deal === "CorreccionesBI") {
-    userData = userDataleads.filter(function (row) {
-      return row[3] === "CorreccionesBI";
-    });
-  }
-  return userData;
-}
-
-/** Asesores con cupo en la cola (misma regla que AssignLead). Útil para mostrar en UI. */
-function listarAgentesDisponiblesColaGestion_(deal) {
-  var userData = getUserDataFilteredForDeal_(deal);
-  var out = [];
-  for (var i = 0; i < userData.length; i++) {
-    var novelty = userData[i][4];
-    var totalCapacity = Number(userData[i][5]);
-    var totalInProcess = Number(userData[i][6]);
-    var availability = totalCapacity - totalInProcess;
-    if ((!novelty || String(novelty).trim() === "") && availability > 0) {
-      out.push({
-        nombre: String(userData[i][1] || ""),
-        email: String(userData[i][2] || "").trim()
-      });
-    }
-  }
+function _renderPlantillaCorreoRenovacionHtml_(tipo, ctx) {
+  var tpl = _extraerPlantillaCorreoHtml_(tipo);
+  var obsHtml = _escapeHtmlRenovacionCorreo_(ctx.observaciones || "").replace(/\r\n|\n|\r/g, "<br/>");
+  var map = {
+    "{{POLIZA}}": _escapeHtmlRenovacionCorreo_(ctx.poliza || ""),
+    "{{ASEGURADO}}": _escapeHtmlRenovacionCorreo_(ctx.asegurado || ""),
+    "{{DOCUMENTO}}": _escapeHtmlRenovacionCorreo_(ctx.documento || ""),
+    "{{OBSERVACIONES}}": obsHtml,
+    "{{DETALLE_GESTION}}": ctx.detalleGestion || ""
+  };
+  var out = tpl;
+  Object.keys(map).forEach(function (k) {
+    out = out.split(k).join(map[k]);
+  });
   return out;
 }
 
+function enviarCorreoGestionRenovacion(payloadJson) {
+  try {
+    var p = typeof payloadJson === "string" ? JSON.parse(payloadJson) : payloadJson;
+    var tipo = String(p.tipo || "").toUpperCase();
+    if (tipo === "CORRECTION") tipo = "CORRECCION";
+    var validTipos = ["CORRECCION", "CANCELADA", "APROBADO"];
+    if (validTipos.indexOf(tipo) < 0) throw new Error("Tipo de plantilla no válido");
+
+    var to = String(p.to || "").trim();
+    if (!to) throw new Error("Destinatario (Para) requerido");
+
+    var obs = String(p.observaciones || "").trim();
+    if ((tipo === "CORRECCION" || tipo === "CANCELADA") && !obs) {
+      throw new Error("Observaciones obligatorias para este tipo de correo");
+    }
+
+    var dataLead = p.dataLead || {};
+    var poliza = String(p.poliza || dataLead.poliza || dataLead.solicitud || "").trim();
+    if (!poliza) throw new Error("No se pudo determinar la póliza");
+
+    var detalle = _buildDetalleGestionRenovacionHtml_(dataLead, p.leadSelect || {}, p.nombreAgente || "");
+    var htmlBody = _renderPlantillaCorreoRenovacionHtml_(tipo, {
+      poliza: dataLead.poliza || poliza,
+      asegurado: dataLead.asegurado,
+      documento: dataLead.documento,
+      observaciones: p.observaciones,
+      detalleGestion: detalle
+    });
+
+    var blobs = [];
+    if (p.attachments && p.attachments.length) {
+      p.attachments.forEach(function (att) {
+        if (att && att.data && att.fileName) {
+          blobs.push(Utilities.newBlob(
+            Utilities.base64Decode(att.data),
+            att.mimeType || "application/octet-stream",
+            att.fileName
+          ));
+        }
+      });
+    }
+    if (p.driveAttachments && p.driveAttachments.length) {
+      p.driveAttachments.forEach(function (d) {
+        if (!d || !d.url) return;
+        var fileId = extraerIdGoogleDrive(String(d.url));
+        if (!fileId) return;
+        try {
+          var driveFile = DriveApp.getFileById(fileId);
+          var raw = driveFile.getBlob();
+          var nombre = d.fileName || driveFile.getName();
+          blobs.push(Utilities.newBlob(raw.getBytes(), raw.getContentType(), nombre));
+        } catch (e1) {
+          console.warn(e1);
+        }
+      });
+    }
+
+    var subject = String(p.subject || "Gestión documental Renovaciones Libertador").trim();
+    var options = { htmlBody: htmlBody, noReply: true, bcc: "paola.garcia@aselibertador.com" };
+    if (blobs.length) options.attachments = blobs;
+    var cc = String(p.cc || "").trim();
+    if (cc) options.cc = cc;
+
+    GmailApp.sendEmail(to, subject, "", options);
+
+    var sheet = Renovaciones;
+    var data = sheet.getDataRange().getDisplayValues();
+    var rowIndex = -1;
+    for (var i = 1; i < data.length; i++) {
+      if (String(data[i][1]).indexOf(poliza) > -1) {
+        rowIndex = i + 1;
+        break;
+      }
+    }
+    if (rowIndex < 0) throw new Error("No se encontró fila para marcar envío (col. H)");
+    var ts = new Date().toISOString();
+    sheet.getRange(rowIndex, 8).setValue(ts);
+
+    return { success: true, emailNotificacionGestionAt: ts };
+  } catch (e) {
+    console.error(e);
+    return { success: false, message: String(e.message || e) };
+  }
+}
+
+function GetDataUser() {
+  var UserMail = Session.getActiveUser().getEmail();
+  let Status;
+  
+  // Nota: Asegúrate de que 'SheetConsolidado', 'SheetAssignment' y 'Renovaciones' 
+  // estén definidas globalmente o inicialízalas aquí.
+  let DataRange = SheetConsolidado.getRange("A2:BC" + SheetConsolidado.getLastRow()).getDisplayValues();
+
+  let Rows = SheetAssignment.getRange("A:A")
+    .createTextFinder(UserMail)
+    .matchEntireCell(true)
+    .ignoreDiacritics(true)
+    .findAll();
+
+  if (Rows == null || Rows.length === 0) return ["No Autenticado", "Null"];
+
+  Status = "Autenticado";
+
+  // Recolectar TODOS los roles del usuario
+  let Roles = Rows.map(row => SheetAssignment.getRange("C" + row.getRow()).getDisplayValue());
+  console.log("Roles encontrados:", Roles);
+
+  let resultado = {};
+
+  // ── SECCIÓN GESTIÓN DOCUMENTAL (UNIFICADA) ──────────────────
+  if (Roles.includes("Gestión Documental")) {
+    let leadsInternos = [];
+    
+    // 1. Filtramos los leads internos de la hoja Consolidado
+    DataRange.filter(function(row) {
+      let tieneEstado = row.indexOf("Pendiente Validación Documental") > -1 ||
+                        row.indexOf("Pendiente Corrección Documental") > -1;
+      let esDelUsuario = row[54].indexOf(UserMail) > -1;
+      
+      if (tieneEstado && esDelUsuario) {
+        leadsInternos.push([
+          row[0], row[4], row[8], row[24], row[2], "Gestión",
+          row[11], row[12], row[1], row[3], row[5], row[9],
+          row[10], row[13], row[14], row[15], row[17], row[19],
+          row[20], row[21], row[22], row[23], row[16], row[45],
+          row[7], row[37]
+        ]);
+      }
+    });
+
+    // 2. Obtenemos los leads de Brokers llamando a la otra función
+    let leadsBrokers = GetDataBrokersYInmobiliarias();
+
+    // 3. Unimos ambos arrays en la misma propiedad del objeto resultado
+    // .concat() junta los dos grupos en una sola lista larga
+    resultado.gestionDocumental = leadsInternos.concat(leadsBrokers);
+    
+    console.log("Total leads (Internos + Brokers):", resultado.gestionDocumental.length);
+  }
+
+  // ── SECCIÓN RENOVACIONES ────────────────────────────────────
+  if (Roles.includes("Analista Renovaciones")) {
+    let dataUpd = Renovaciones.getRange("A2:H" + Renovaciones.getLastRow()).getDisplayValues();
+
+    let misRegistros = dataUpd.filter(row =>
+      row[2] && row[2].toString().trim().toLowerCase() === UserMail.trim().toLowerCase()
+    );
+
+    let todosMisLeads = misRegistros.map(row => {
+      const fechaIngreso = row[0];
+      const registroRaw = row[1];
+      const nombreAgente = row[2];
+      const etapaFunel = row[3];
+      const estadoGestion = row[4];
+      const dataGestionRaw = row[5];
+      const historiaRaw = row[6];
+      const emailNotificacionGestionAt = row[7] != null ? String(row[7]).trim() : "";
+
+      let historialGestion = [];
+      if (historiaRaw && String(historiaRaw).trim() !== "") {
+        let cleanHistoryString = String(historiaRaw).trim();
+        if (cleanHistoryString.startsWith(")]}',")) {
+          cleanHistoryString = cleanHistoryString.substring(5);
+        }
+        try {
+          let parsed = JSON.parse(cleanHistoryString);
+          historialGestion = Array.isArray(parsed) ? parsed : [parsed];
+        } catch (e) {
+          historialGestion = [];
+        }
+      }
+
+      let leadSelect = {};
+      try {
+        leadSelect = JSON.parse(String(dataGestionRaw).trim().replace(/\bNaN\b/g, "null"));
+      } catch (e) {
+        leadSelect = { error: "JSON Gestión inválido" };
+      }
+
+      let dataLead = {};
+      try {
+        dataLead = JSON.parse(String(registroRaw).trim().replace(/\bNaN\b/g, "null"));
+      } catch (e) {
+        dataLead = { error: "JSON Lead inválido" };
+      }
+
+      return {
+        fechaIngreso, leadSelect, dataLead,
+        nombreAgente, etapaFunel, estadoGestion,
+        historialGestiones: historialGestion,
+        emailNotificacionGestionAt
+      };
+    });
+
+    resultado.renovaciones = {
+      pendientes: todosMisLeads.filter(i => ["Enviar a Expedicion", "Autogestionado", "Caso Revisado"].includes(i.estadoGestion)),
+      especiales: todosMisLeads.filter(i => i.estadoGestion === "Caso Especial"),
+      renovadas: todosMisLeads.filter(i => ["Poliza Renovada", "Expedido"].includes(i.estadoGestion))
+    };
+  }
+
+  // Retornar Status, el objeto con todos los leads, el mail y los roles
+  return [Status, resultado, UserMail, Roles];
+}
+
+function getNewLeadAssignment(segmento) {
+  let gestion = "Renovations";
+  let seg = String(segmento || "").toUpperCase();
+  if (seg.includes("BROKER") || seg.includes("INMOBILIARIA")) {
+    gestion = "CorreccionesBI";
+  }
+  let asignacion = AssignLead(gestion);
+  return asignacion.email;
+}
+
 function AssignLead(deal = "CorreccionesBI") {
-  let userData = getUserDataFilteredForDeal_(deal);
+
+  let userDataleads = DataGestion.getRange("A1:K" + DataGestion.getLastRow()).getDisplayValues();
+
+  if (deal === "Renovations") {
+    userData = userDataleads.filter(function (row) {
+      return row[3] === "Renovations";
+    })
+  } else if (deal === "Sales") {
+    userData = userDataleads.filter(function (row) {
+      return row[3] === "Seguro de Vida" || row[3] === "Seguro de Desempleo";
+    })
+  } else if (deal === "CorreccionesBI") {
+    userData = userDataleads.filter(function (row) {
+      return row[3] === "CorreccionesBI";
+    })
+  }
   let bestAgent = null;
   let highestEffectiveness = -1;
   let bestSortingKey = Number.POSITIVE_INFINITY;
@@ -1922,7 +2028,7 @@ function GetDataBrokersYInmobiliarias() {
       var ValorServicios = formatearAEntero(DataRange[48]);
       var PrimaServicios = formatNumberInput(CalculatePrimaServicios(DataRange[24], ValorServicios).toString());
       Logger.log(PrimaServicios)
-      DataRangeUserPending.push([DataRange[0], DataRange[11], DataRange[19], DataRange[12], DataRange[1], "", DataRange[2], DataRange[24], DataRange[28], DataRange[45], DataRange[10], DataRange[8], DataRange[9], DataRange[13], DataRange[18], DataRange[33], DataRange[26], DataRange[27], DataRange[28], DataRange[25], DataRange[14], DataRange[48], DataRange[49], DataRange[51], DataRange[17], DataRange[56], DataRange[30], DataRange[31]]);
+      DataRangeUserPending.push([DataRange[0], DataRange[11], DataRange[19], DataRange[52], DataRange[1], "", DataRange[2], DataRange[24], DataRange[2], DataRange[45], DataRange[10], DataRange[8], DataRange[9], DataRange[13], DataRange[18], DataRange[33], DataRange[26], DataRange[27], DataRange[28], DataRange[25], DataRange[14], DataRange[48], DataRange[49], DataRange[51], DataRange[17], DataRange[56], DataRange[30], DataRange[31]]);
     }
   });
   return DataRangeUserPending;
@@ -2233,786 +2339,6 @@ function ocrPolizas() {
   Logger.log(poliza);
   Logger.log(valorNeto)
   DriveApp.getFileById(docFile.id).setTrashed(true);
-}
-
-
-/* =============================================================================
-   Renovaciones — Correo por segmento (US-01, US-02, US-03)
-   Sin segmento en datos = se trata como PROPIETARIO.
-   ============================================================================= */
-
-function _escapeHtmlRenovCorreo_(s) {
-  if (s == null || s === undefined) return "";
-  return String(s)
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
-}
-
-function _defaultCorreoRenovParamRows_() {
-  return [
-    ["PARA_RENOVACIONES", "Renovaciones Arrendamiento (Bolívar)", "renovacionesarrendamiento@segurosbolivar.com", "Destinatario principal (Para)"],
-    ["CC_WILBER_BROKER", "Wilber Barrera", "wilber.barrera@aselibertador.com", "Copia fija segmento Bróker"],
-    ["CC_MAGDA_INMO", "Magda Ramírez", "magda.ramirez@segurosbolivar.com", "Copia segmento Inmobiliaria"],
-    ["EJEC_BROKER_FABIAN", "Jeison Sánchez (cuenta Fabián)", "jeison.sanchez@aselibertador.com", "Ejecutivo de cuenta Bróker"],
-    ["EJEC_BROKER_YENY", "Yeny Jaimes", "yeny.jaimes@aselibertador.com", "Ejecutivo de cuenta Bróker"]
-  ];
-}
-
-function getOrCreateCorreoRenovParamSheet_() {
-  var sh = DataWereHouse.getSheetByName(SHEET_CORREO_RENOV_PARAM);
-  if (!sh) {
-    sh = DataWereHouse.insertSheet(SHEET_CORREO_RENOV_PARAM);
-    sh.getRange(1, 1, 1, 4).setValues([["Clave", "Nombre", "Correo", "Especialidad"]]);
-    var seed = _defaultCorreoRenovParamRows_();
-    sh.getRange(2, 1, 1 + seed.length, 4).setValues(seed);
-  }
-  return sh;
-}
-
-function getMergedCorreoRenovParams_() {
-  var map = {};
-  var defaults = _defaultCorreoRenovParamRows_();
-  for (var d = 0; d < defaults.length; d++) {
-    map[defaults[d][0]] = { nombre: defaults[d][1], correo: defaults[d][2], especialidad: defaults[d][3] };
-  }
-  try {
-    var sh = DataWereHouse.getSheetByName(SHEET_CORREO_RENOV_PARAM);
-    if (!sh || sh.getLastRow() < 2) return map;
-    var rows = sh.getRange(2, 1, sh.getLastRow(), 4).getDisplayValues();
-    for (var i = 0; i < rows.length; i++) {
-      var clave = String(rows[i][0] || "").trim();
-      if (!clave) continue;
-      map[clave] = {
-        nombre: String(rows[i][1] || "").trim(),
-        correo: String(rows[i][2] || "").trim().replace(/\s/g, ""),
-        especialidad: String(rows[i][3] || "").trim()
-      };
-    }
-  } catch (e) {
-    Logger.log("getMergedCorreoRenovParams_: " + e);
-  }
-  return map;
-}
-
-/**
- * Lista filas para la vista CRM de administración (US-01).
- */
-function listarParamCorreoRenovacion() {
-  try {
-    getOrCreateCorreoRenovParamSheet_();
-    var sh = DataWereHouse.getSheetByName(SHEET_CORREO_RENOV_PARAM);
-    var out = [];
-    if (sh.getLastRow() >= 2) {
-      var rows = sh.getRange(2, 1, sh.getLastRow(), 4).getDisplayValues();
-      for (var i = 0; i < rows.length; i++) {
-        if (String(rows[i][0] || "").trim() === "") continue;
-        out.push({
-          clave: rows[i][0],
-          nombre: rows[i][1],
-          correo: rows[i][2],
-          especialidad: rows[i][3]
-        });
-      }
-    }
-    return { success: true, filas: out };
-  } catch (e) {
-    return { success: false, message: String(e), filas: [] };
-  }
-}
-
-/**
- * Guarda la tabla de parámetros (desde la vista CRM). Espera array de { clave, nombre, correo, especialidad }.
- */
-function guardarParamCorreoRenovacion(filas) {
-  try {
-    var sh = getOrCreateCorreoRenovParamSheet_();
-    if (sh.getLastRow() > 1) {
-      sh.getRange(2, 1, sh.getLastRow(), 4).clearContent();
-    }
-    if (!filas || !filas.length) {
-      var seed = _defaultCorreoRenovParamRows_();
-      sh.getRange(2, 1, 1 + seed.length, 4).setValues(seed);
-      return { success: true, message: "Restaurados valores por defecto." };
-    }
-    var matrix = [];
-    for (var i = 0; i < filas.length; i++) {
-      var f = filas[i] || {};
-      matrix.push([
-        String(f.clave || "").trim(),
-        String(f.nombre || "").trim(),
-        String(f.correo || "").trim().replace(/\s/g, ""),
-        String(f.especialidad || "").trim()
-      ]);
-    }
-    sh.getRange(2, 1, 1 + matrix.length, 4).setValues(matrix);
-    return { success: true, message: "Parámetros guardados." };
-  } catch (e) {
-    return { success: false, message: String(e) };
-  }
-}
-
-function normalizeSegmentoRenovacion_(dataLead, segmentoSheetColumn) {
-  var raw = "";
-  if (dataLead && dataLead.segmento) raw = String(dataLead.segmento);
-  else if (segmentoSheetColumn) raw = String(segmentoSheetColumn);
-  var u = raw.toUpperCase().trim();
-  if (!u || u.indexOf("SIN") === 0) return "PROPIETARIO";
-  if (u.indexOf("INMOBILIARIA") !== -1) return "INMOBILIARIA";
-  if (u.indexOf("BROKER") !== -1 || u.indexOf("BRÓKER") !== -1 || u.indexOf("BROK") !== -1) return "BROKER";
-  if (u.indexOf("PROPIETARIO") !== -1) return "PROPIETARIO";
-  return "PROPIETARIO";
-}
-
-function _validEmail_(e) {
-  if (!e || typeof e !== "string") return false;
-  var t = e.trim();
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(t);
-}
-
-function _emailPropietario_(dataLead) {
-  var a = (dataLead && dataLead.email) ? String(dataLead.email).trim() : "";
-  var b = (dataLead && dataLead.emailBrIn) ? String(dataLead.emailBrIn).trim() : "";
-  if (_validEmail_(a)) return a.replace(/\s/g, "");
-  if (_validEmail_(b)) return b.replace(/\s/g, "");
-  return "";
-}
-
-function resolveEjecutivoBrokerCC_(emailAnalistaAsignado, params) {
-  var e = String(emailAnalistaAsignado || "").toLowerCase().trim();
-  if (e.indexOf("yeny.jaimes") !== -1 || (e.indexOf("yeny") !== -1 && e.indexOf("jaimes") !== -1)) {
-    return params.EJEC_BROKER_YENY ? params.EJEC_BROKER_YENY.correo : "yeny.jaimes@aselibertador.com";
-  }
-  if (e.indexOf("jeison.sanchez") !== -1 || e.indexOf("jeison") !== -1) {
-    return params.EJEC_BROKER_FABIAN ? params.EJEC_BROKER_FABIAN.correo : "jeison.sanchez@aselibertador.com";
-  }
-  return params.EJEC_BROKER_FABIAN ? params.EJEC_BROKER_FABIAN.correo : "jeison.sanchez@aselibertador.com";
-}
-
-/**
- * Arma Para + CC según segmento (US-01). No incluye correos adicionales del cliente (US-02).
- */
-function buildRenovacionRecipientPlan_(segmentoNorm, dataLead, emailAnalistaAsignado) {
-  var params = getMergedCorreoRenovParams_();
-  var para = params.PARA_RENOVACIONES && params.PARA_RENOVACIONES.correo
-    ? params.PARA_RENOVACIONES.correo
-    : "renovacionesarrendamiento@segurosbolivar.com";
-  var cc = [];
-  var ccMeta = [];
-
-  if (segmentoNorm === "PROPIETARIO") {
-    var ep = _emailPropietario_(dataLead);
-    if (ep) {
-      cc.push(ep);
-      ccMeta.push({ nombre: "Propietario / tomador", correo: ep, rol: "CC segmento Propietario" });
-    }
-  } else if (segmentoNorm === "BROKER") {
-    var ej = resolveEjecutivoBrokerCC_(emailAnalistaAsignado, params);
-    if (ej && _validEmail_(ej)) {
-      cc.push(ej);
-      ccMeta.push({ nombre: "Ejecutivo de cuenta", correo: ej, rol: "CC segmento Bróker" });
-    }
-    var w = params.CC_WILBER_BROKER && params.CC_WILBER_BROKER.correo
-      ? params.CC_WILBER_BROKER.correo
-      : "wilber.barrera@aselibertador.com";
-    if (w && _validEmail_(w) && cc.indexOf(w) === -1) {
-      cc.push(w);
-      ccMeta.push({ nombre: "Wilber Barrera", correo: w, rol: "CC fija Bróker" });
-    }
-  } else if (segmentoNorm === "INMOBILIARIA") {
-    var m = params.CC_MAGDA_INMO && params.CC_MAGDA_INMO.correo
-      ? params.CC_MAGDA_INMO.correo
-      : "magda.ramirez@segurosbolivar.com";
-    if (m && _validEmail_(m)) {
-      cc.push(m);
-      ccMeta.push({ nombre: "Magda Ramírez", correo: m, rol: "CC segmento Inmobiliaria" });
-    }
-  }
-
-  return { para: para, cc: cc, ccMeta: ccMeta, segmentoNorm: segmentoNorm };
-}
-
-function _parseExtraCcList_(s1, s2) {
-  var out = [];
-  var parts = [];
-  if (s1) parts = parts.concat(String(s1).split(/[;,]/));
-  if (s2) parts = parts.concat(String(s2).split(/[;,]/));
-  for (var i = 0; i < parts.length; i++) {
-    var x = String(parts[i] || "").trim();
-    if (_validEmail_(x) && out.indexOf(x) === -1) out.push(x.replace(/\s/g, ""));
-  }
-  return out;
-}
-
-function _tituloCampoCorreoRenov_(key) {
-  var k = String(key).toLowerCase();
-  if (k === "email") return "Tomador / asegurado (correo principal)";
-  if (k.indexOf("emailbrin") !== -1) return "Arrendatario / contacto BrIn";
-  if (k.indexOf("correobroker") !== -1 || k.indexOf("emailbroker") !== -1 || k.indexOf("correo_broker") !== -1 || k.indexOf("email_broker") !== -1) return "Contacto bróker";
-  if (k.indexOf("inmobiliaria") !== -1 && (k.indexOf("correo") !== -1 || k.indexOf("email") !== -1)) return "Contacto inmobiliaria";
-  if (k.indexOf("ejecutivo") !== -1 && (k.indexOf("correo") !== -1 || k.indexOf("email") !== -1)) return "Ejecutivo comercial";
-  if (k.indexOf("correo") !== -1 || k.indexOf("email") !== -1 || k.indexOf("mail") !== -1) return "Contacto en datos (" + key + ")";
-  return key;
-}
-
-function _categoriaCampoCorreoRenov_(key) {
-  var k = String(key).toLowerCase();
-  if (k === "email") return "Propietario / tomador";
-  if (k.indexOf("brin") !== -1) return "Arrendatario";
-  if (k.indexOf("broker") !== -1 || k.indexOf("corredor") !== -1) return "Bróker";
-  if (k.indexOf("inmobiliaria") !== -1) return "Inmobiliaria";
-  if (k.indexOf("ejecutivo") !== -1) return "Ejecutivo";
-  return "Dato póliza";
-}
-
-function _extraerCorreosDesdeObjetoPlano_(obj, fuente, seen, candidatos) {
-  if (!obj || typeof obj !== "object") return;
-  for (var key in obj) {
-    if (!obj.hasOwnProperty(key)) continue;
-    var val = obj[key];
-    if (val == null) continue;
-    if (typeof val === "string" && _validEmail_(val)) {
-      var lk = String(key).toLowerCase();
-      if (lk.indexOf("email") === -1 && lk.indexOf("correo") === -1 && lk.indexOf("mail") === -1) continue;
-      var em = String(val).trim().replace(/\s/g, "");
-      var low = em.toLowerCase();
-      if (seen[low]) continue;
-      seen[low] = true;
-      candidatos.push({
-        id: fuente + "_" + key + "_" + low.replace(/[^a-z0-9]/gi, "").substring(0, 14),
-        correo: em,
-        titulo: _tituloCampoCorreoRenov_(key),
-        categoria: _categoriaCampoCorreoRenov_(key),
-        campo: key,
-        fuenteDatos: fuente
-      });
-    }
-  }
-}
-
-function construirCandidatosCorreoRenovacion_(dataLead, leadSelect, plan) {
-  var seen = {};
-  var candidatos = [];
-  _extraerCorreosDesdeObjetoPlano_(dataLead, "Póliza (JSON fila)", seen, candidatos);
-  _extraerCorreosDesdeObjetoPlano_(leadSelect || {}, "Gestión / oferta", seen, candidatos);
-
-  for (var i = 0; i < plan.ccMeta.length; i++) {
-    var m = plan.ccMeta[i];
-    var em = String(m.correo || "").trim().replace(/\s/g, "");
-    if (!_validEmail_(em)) continue;
-    var low = em.toLowerCase();
-    if (seen[low]) {
-      for (var j = 0; j < candidatos.length; j++) {
-        if (candidatos[j].correo.toLowerCase() === low) {
-          if (m.rol) candidatos[j].titulo += " · " + m.rol;
-          break;
-        }
-      }
-      continue;
-    }
-    seen[low] = true;
-    candidatos.push({
-      id: "regla_" + i + "_" + low.replace(/[^a-z0-9]/gi, "").substring(0, 12),
-      correo: em,
-      titulo: m.nombre || "Destinatario por regla de segmento",
-      categoria: "Regla / segmento",
-      rolDetalle: m.rol || "",
-      fuenteDatos: "parametrizado"
-    });
-  }
-
-  var planEmails = {};
-  for (var p = 0; p < plan.cc.length; p++) {
-    planEmails[String(plan.cc[p]).toLowerCase()] = true;
-  }
-  for (var c = 0; c < candidatos.length; c++) {
-    candidatos[c].incluidoPorDefecto = !!planEmails[candidatos[c].correo.toLowerCase()];
-  }
-
-  return candidatos;
-}
-
-function _aplicarSeleccionCandidatos_(candidatos, ccSeleccionados, usarDefecto) {
-  for (var i = 0; i < candidatos.length; i++) {
-    var em = candidatos[i].correo.toLowerCase();
-    if (usarDefecto) {
-      candidatos[i].seleccionado = !!candidatos[i].incluidoPorDefecto;
-    } else {
-      candidatos[i].seleccionado = false;
-      for (var s = 0; s < ccSeleccionados.length; s++) {
-        if (String(ccSeleccionados[s] || "")
-          .trim()
-          .toLowerCase() === em) {
-          candidatos[i].seleccionado = true;
-          break;
-        }
-      }
-    }
-  }
-}
-
-function _ccFinalDesdeCandidatosExtras_(candidatos, extras, paraEmail) {
-  var cc = [];
-  var paraLow = String(paraEmail || "").toLowerCase().trim();
-  for (var i = 0; i < candidatos.length; i++) {
-    if (!candidatos[i].seleccionado) continue;
-    var em = candidatos[i].correo;
-    if (em.toLowerCase() === paraLow) continue;
-    if (cc.indexOf(em) === -1) cc.push(em);
-  }
-  for (var e = 0; e < extras.length; e++) {
-    var x = extras[e];
-    if (!x || String(x).toLowerCase() === paraLow) continue;
-    if (cc.indexOf(x) === -1) cc.push(x);
-  }
-  return cc;
-}
-
-function _ccMetaDesdeCandidatos_(candidatos, extras) {
-  var meta = [];
-  for (var i = 0; i < candidatos.length; i++) {
-    if (!candidatos[i].seleccionado) continue;
-    meta.push({
-      nombre: candidatos[i].titulo,
-      correo: candidatos[i].correo,
-      rol: candidatos[i].categoria + " · " + (candidatos[i].fuenteDatos || "")
-    });
-  }
-  for (var j = 0; j < extras.length; j++) {
-    meta.push({
-      nombre: "Adicional (formulario)",
-      correo: extras[j],
-      rol: "CC sugerido"
-    });
-  }
-  return meta;
-}
-
-function _fillRenovCorreoTemplate_(fileName, vars) {
-  var html = HtmlService.createHtmlOutputFromFile(fileName).getContent();
-  for (var k in vars) {
-    if (!vars.hasOwnProperty(k)) continue;
-    var re = new RegExp("\\{\\{" + k + "\\}\\}", "g");
-    html = html.replace(re, vars[k]);
-  }
-  return html;
-}
-
-function _subjectRenovacion_(tipoAccion, poliza) {
-  var ref = poliza || "N/A";
-  if (tipoAccion === "APPROVE") return "Renovación aprobada / expedición — Póliza " + ref;
-  if (tipoAccion === "CORRECTION") return "Correcciones solicitadas — Renovación póliza " + ref;
-  if (tipoAccion === "CANCELADA") return "Renovación declinada (imposible renovar) — Póliza " + ref;
-  return "Notificación renovación — Póliza " + ref;
-}
-
-/**
- * Vista previa + metadatos para el modal (US-02, US-03). No envía correo.
- * payload: { tipoAccionCorreo, dataLead, leadSelect?, segmentoSheetColumn?, segmento? (prioridad para normalizar segmento / cola CorreccionesBI), emailAnalistaAsignado?, observations?, notasAnalista?, correoAdicional1?, correoAdicional2?, ccSeleccionados? }
- * Si ccSeleccionados es undefined/null → se usan los marcados por defecto (reglas de segmento). Si es array (puede estar vacío) → refleja la selección del analista.
- */
-function getRenovacionCorreoPreview(payload) {
-  try {
-    var dataLead = payload.dataLead || {};
-    var leadSelect = payload.leadSelect || {};
-    var dataLeadSeg = dataLead;
-    if (payload.segmento != null && String(payload.segmento).trim() !== "") {
-      dataLeadSeg = Object.assign({}, dataLead, { segmento: payload.segmento });
-    }
-    var seg = normalizeSegmentoRenovacion_(dataLeadSeg, payload.segmentoSheetColumn);
-    var plan = buildRenovacionRecipientPlan_(seg, dataLead, payload.emailAnalistaAsignado);
-    var extra = _parseExtraCcList_(payload.correoAdicional1, payload.correoAdicional2);
-
-    var candidatos = construirCandidatosCorreoRenovacion_(dataLead, leadSelect, plan);
-    var rawSel = payload.ccSeleccionados;
-    var usarDefecto = (rawSel === undefined || rawSel === null);
-    var ccSelArr = usarDefecto ? [] : rawSel;
-    _aplicarSeleccionCandidatos_(candidatos, ccSelArr, usarDefecto);
-
-    var ccFinal = _ccFinalDesdeCandidatosExtras_(candidatos, extra, plan.para);
-    var ccMeta = _ccMetaDesdeCandidatos_(candidatos, extra);
-
-    var poliza = String(dataLead.poliza != null ? dataLead.poliza : "");
-    var obsBase = payload.observations || payload.observaciones || "";
-    var obs = payload.tipoAccionCorreo === "APPROVE"
-      ? (payload.notasAnalista || obsBase || "")
-      : obsBase;
-    var fechaStr = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "yyyy-MM-dd HH:mm");
-
-    var vars = {
-      POLIZA: _escapeHtmlRenovCorreo_(poliza),
-      ASEGURADO: _escapeHtmlRenovCorreo_(dataLead.asegurado || ""),
-      DOCUMENTO: _escapeHtmlRenovCorreo_(dataLead.documento != null ? dataLead.documento : ""),
-      SEGMENTO: _escapeHtmlRenovCorreo_(seg),
-      NOTAS: _escapeHtmlRenovCorreo_(payload.notasAnalista || obsBase || "—"),
-      OBSERVACIONES: _escapeHtmlRenovCorreo_(obs || "—"),
-      FECHA_ENVIO: _escapeHtmlRenovCorreo_(fechaStr)
-    };
-
-    var fileTpl = "Pieza_Renov_Correo_Aprobada";
-    if (payload.tipoAccionCorreo === "CORRECTION") fileTpl = "Pieza_Renov_Correo_Correccion";
-    else if (payload.tipoAccionCorreo === "CANCELADA") fileTpl = "Pieza_Renov_Correo_Cancelada";
-
-    var htmlBody = _fillRenovCorreoTemplate_(fileTpl, vars);
-    var subject = _subjectRenovacion_(payload.tipoAccionCorreo, poliza);
-
-    var asignacionCorreccion = null;
-    if (payload.tipoAccionCorreo === "CORRECTION") {
-      var colaCorr = colaGestionCorreccionPorSegmentoNorm_(seg);
-      var agentePrev = AssignLead(colaCorr);
-      asignacionCorreccion = {
-        cola: colaCorr,
-        colaLegible:
-          colaCorr === "CorreccionesBI"
-            ? "Correcciones BI (bróker / inmobiliaria) — Tabla Gestion"
-            : "Renovaciones (propietario y demás) — Tabla Gestion",
-        agentePrevisto: agentePrev
-          ? { nombre: String(agentePrev.name || ""), email: String(agentePrev.email || "").trim() }
-          : null,
-        emailEnHoja:
-          agentePrev && agentePrev.email
-            ? String(agentePrev.email).trim()
-            : "sin.asignar@segurosbolivar.com",
-        agentesDisponibles: listarAgentesDisponiblesColaGestion_(colaCorr)
-      };
-    }
-
-    return {
-      success: true,
-      subject: subject,
-      para: plan.para,
-      cc: ccFinal,
-      ccMeta: ccMeta,
-      candidatos: candidatos,
-      segmentoNorm: seg,
-      htmlBody: htmlBody,
-      asignacionCorreccion: asignacionCorreccion
-    };
-  } catch (e) {
-    return { success: false, message: String(e) };
-  }
-}
-
-function _findRenovacionRowByPoliza_(poliza) {
-  var sheet = Renovaciones;
-  var data = sheet.getDataRange().getDisplayValues();
-  var p = String(poliza);
-  for (var i = 1; i < data.length; i++) {
-    if (String(data[i][1]).indexOf(p) !== -1) return i + 1;
-  }
-  return -1;
-}
-
-function appendLogCorreoRenovacion_(poliza, entry) {
-  var row = _findRenovacionRowByPoliza_(poliza);
-  if (row < 0) return false;
-  var cell = Renovaciones.getRange(row, COL_LOG_CORREO_RENOV);
-  var prev = cell.getValue();
-  var arr = [];
-  try {
-    if (prev) arr = JSON.parse(prev);
-  } catch (e) {
-    arr = [];
-  }
-  if (!Array.isArray(arr)) arr = [];
-  arr.push(entry);
-  cell.setValue(JSON.stringify(arr));
-  return true;
-}
-
-function _sanitizeNombreAdjuntoRenov_(nombre) {
-  var n = String(nombre || "adjunto").trim();
-  if (n.length > 180) n = n.substring(0, 180);
-  return n.replace(/[^\w\.\- áéíóúñÁÉÍÓÚÑ]/g, "_");
-}
-
-/**
- * Procesa adjuntos una sola vez: blobs para Gmail + informe por ítem (reutilizado en envío real y en prueba en seco).
- * @returns {{ blobs: GoogleAppsScript.Base.Blob[], informe: Array<{tipo:string,nombre:string,ok:boolean,error?:string,sizeBytes?:number}> }}
- */
-function _adjuntosRenovCorreoProcesar_(adjuntos) {
-  var blobs = [];
-  var informe = [];
-  if (!adjuntos || !adjuntos.length) {
-    return { blobs: blobs, informe: informe };
-  }
-  for (var i = 0; i < adjuntos.length; i++) {
-    var a = adjuntos[i] || {};
-    var nomRef = String(a.nombre || a.fileId || "archivo");
-    try {
-      if (a.tipo === "drive" && a.fileId) {
-        var file = DriveApp.getFileById(String(a.fileId).trim());
-        var b = file.getBlob();
-        var nom = _sanitizeNombreAdjuntoRenov_(a.nombre || file.getName());
-        b.setName(nom);
-        blobs.push(b);
-        informe.push({ tipo: "drive", nombre: nom, ok: true, sizeBytes: b.getBytes().length });
-      } else if (a.tipo === "base64" && a.data) {
-        var mime = a.mimeType || "application/octet-stream";
-        var nom2 = _sanitizeNombreAdjuntoRenov_(a.nombre || "documento");
-        var blob = Utilities.newBlob(Utilities.base64Decode(String(a.data)), mime, nom2);
-        blobs.push(blob);
-        informe.push({ tipo: "base64", nombre: nom2, ok: true, sizeBytes: blob.getBytes().length });
-      } else {
-        informe.push({ tipo: String(a.tipo || "?"), nombre: nomRef, ok: false, error: "Formato no reconocido o datos incompletos" });
-      }
-    } catch (err) {
-      Logger.log("Adjunto correo renovación: " + err);
-      informe.push({ tipo: String(a.tipo || "?"), nombre: nomRef, ok: false, error: String(err) });
-    }
-  }
-  return { blobs: blobs, informe: informe };
-}
-
-function _adjuntosRenovCorreoABlobs_(adjuntos) {
-  return _adjuntosRenovCorreoProcesar_(adjuntos).blobs;
-}
-
-/**
- * Prueba completa sin Gmail ni processAnalystDecision ni log en hoja.
- * Útil para validar desde el CRM (botón) o desde el editor: ejecutarPruebasAutomaticasCorreoRenovacion()
- */
-function probarCorreoRenovacionSinEnvio(payload) {
-  try {
-    var tipo = payload.tipoAccionCorreo || payload.decision;
-    if (tipo === "APPROVE") tipo = "APPROVE";
-    else if (tipo === "CORRECTION") tipo = "CORRECTION";
-    else if (tipo === "CANCELADA" || tipo === "CANCEL") tipo = "CANCELADA";
-
-    if (tipo !== "APPROVE" && tipo !== "CORRECTION" && tipo !== "CANCELADA") {
-      return { success: false, dryRun: true, message: "Tipo de acción de correo no válido." };
-    }
-
-    var dataLead = payload.dataLead || {};
-    if ((tipo === "CORRECTION" || tipo === "CANCELADA") && !(payload.observations && String(payload.observations).trim())) {
-      return { success: false, dryRun: true, message: "Debe indicar observaciones / motivo (prueba igual que envío real)." };
-    }
-
-    var prevIn = {
-      tipoAccionCorreo: tipo,
-      dataLead: dataLead,
-      leadSelect: payload.leadSelect,
-      segmentoSheetColumn: payload.segmentoSheetColumn,
-      emailAnalistaAsignado: payload.emailAnalistaAsignado,
-      observations: payload.observations,
-      notasAnalista: payload.notasAnalista,
-      correoAdicional1: payload.correoAdicional1,
-      correoAdicional2: payload.correoAdicional2,
-      ccSeleccionados: payload.ccSeleccionados
-    };
-    if (payload.segmento != null && String(payload.segmento).trim() !== "") {
-      prevIn.segmento = payload.segmento;
-    }
-    var preview = getRenovacionCorreoPreview(prevIn);
-
-    if (!preview.success) {
-      return Object.assign({ dryRun: true }, preview);
-    }
-
-    var adjRes = _adjuntosRenovCorreoProcesar_(payload.emailAdjuntos || []);
-    var fallos = adjRes.informe.filter(function (x) {
-      return !x.ok;
-    });
-
-    return {
-      success: fallos.length === 0,
-      dryRun: true,
-      message: fallos.length
-        ? "Vista previa OK; revise adjuntos con error (no se envió nada)."
-        : "Validación OK: destinatarios, cuerpo y adjuntos listos. No se envió correo ni se guardó gestión.",
-      resumen: {
-        para: preview.para,
-        cc: preview.cc,
-        asunto: preview.subject,
-        segmento: preview.segmentoNorm,
-        numCandidatos: (preview.candidatos || []).length,
-        tamanoHtmlCuerpo: (preview.htmlBody || "").length,
-        numAdjuntosSolicitados: (payload.emailAdjuntos || []).length,
-        numAdjuntosBlobOk: adjRes.blobs.length,
-        asignacionCorreccion: preview.asignacionCorreccion || null
-      },
-      adjuntosInforme: adjRes.informe
-    };
-  } catch (e) {
-    return { success: false, dryRun: true, message: "Error: " + e.toString() };
-  }
-}
-
-/**
- * Ejecutar en el editor de Apps Script (Ejecutar > ejecutarPruebasAutomaticasCorreoRenovacion).
- * No envía correos. Revisa rutas de preview + adjuntos con datos mínimos.
- */
-function ejecutarPruebasAutomaticasCorreoRenovacion() {
-  var resultados = [];
-  var mockLead = {
-    poliza: "PRUEBA_INTERNA_001",
-    solicitud: "PRUEBA_INTERNA_001",
-    asegurado: "Cliente Prueba QA",
-    documento: "123",
-    segmento: "PROPIETARIO",
-    email: "qa.propietario@example.com"
-  };
-  var p1 = probarCorreoRenovacionSinEnvio({
-    tipoAccionCorreo: "APPROVE",
-    dataLead: mockLead,
-    leadSelect: {},
-    observations: "Prueba automática",
-    notasAnalista: "Nota QA",
-    ccSeleccionados: [],
-    emailAdjuntos: []
-  });
-  resultados.push({ caso: "APPROVE propietario sin adjuntos", ok: p1.success, detalle: p1 });
-
-  var p2 = probarCorreoRenovacionSinEnvio({
-    tipoAccionCorreo: "CORRECTION",
-    dataLead: mockLead,
-    leadSelect: {},
-    observations: "Motivo prueba corrección",
-    segmento: "PROPIETARIO",
-    ccSeleccionados: []
-  });
-  resultados.push({ caso: "CORRECTION con observaciones", ok: p2.success, detalle: p2 });
-
-  var p3 = getRenovacionCorreoPreview({
-    tipoAccionCorreo: "APPROVE",
-    dataLead: { poliza: "P2", segmento: "BROKER", email: "b@example.com" },
-    leadSelect: {},
-    emailAnalistaAsignado: "jeison.sanchez@aselibertador.com",
-    observations: "x",
-    notasAnalista: ""
-  });
-  resultados.push({
-    caso: "Preview solo segmento BROKER",
-    ok: !!(p3 && p3.success),
-    detalle: p3
-  });
-
-  var p4 = probarCorreoRenovacionSinEnvio({
-    tipoAccionCorreo: "CORRECTION",
-    dataLead: Object.assign({}, mockLead, { segmento: "BROKER" }),
-    leadSelect: {},
-    observations: "Motivo prueba cola BI",
-    segmento: "BROKER",
-    ccSeleccionados: []
-  });
-  var colaOk =
-    p4.resumen &&
-    p4.resumen.asignacionCorreccion &&
-    p4.resumen.asignacionCorreccion.cola === "CorreccionesBI";
-  resultados.push({
-    caso: "CORRECTION segmento BROKER → cola CorreccionesBI",
-    ok: !!p4.success && !!colaOk,
-    detalle: p4
-  });
-
-  Logger.log(JSON.stringify(resultados, null, 2));
-  return resultados;
-}
-
-/**
- * Envía el correo (solo tras aprobación manual en UI) y ejecuta processAnalystDecision.
- * payload: mismo que processAnalystDecision + tipoAccionCorreo ('APPROVE'|'CORRECTION'|'CANCELADA') + correoAdicional1/2 + emailAnalistaAsignado + segmentoSheetColumn (opcional) + notasAnalista (aprobar)
- * emailAdjuntos: [{ tipo:'drive', fileId, nombre }, { tipo:'base64', data, mimeType, nombre }]
- */
-function procesarDecisionAnalistaConCorreo(payload) {
-  try {
-    var tipo = payload.tipoAccionCorreo || payload.decision;
-    if (tipo === "APPROVE") tipo = "APPROVE";
-    else if (tipo === "CORRECTION") tipo = "CORRECTION";
-    else if (tipo === "CANCELADA" || tipo === "CANCEL") tipo = "CANCELADA";
-
-    if (tipo !== "APPROVE" && tipo !== "CORRECTION" && tipo !== "CANCELADA") {
-      return { success: false, message: "Tipo de acción de correo no válido." };
-    }
-
-    var dataLead = payload.dataLead || {};
-    var poliza = dataLead.poliza || dataLead.solicitud;
-
-    if ((tipo === "CORRECTION" || tipo === "CANCELADA") && !(payload.observations && String(payload.observations).trim())) {
-      return { success: false, message: "Debe indicar observaciones / motivo." };
-    }
-
-    var prevPayload = {
-      tipoAccionCorreo: tipo,
-      dataLead: dataLead,
-      leadSelect: payload.leadSelect,
-      segmentoSheetColumn: payload.segmentoSheetColumn,
-      emailAnalistaAsignado: payload.emailAnalistaAsignado,
-      observations: payload.observations,
-      notasAnalista: payload.notasAnalista,
-      correoAdicional1: payload.correoAdicional1,
-      correoAdicional2: payload.correoAdicional2,
-      ccSeleccionados: payload.ccSeleccionados
-    };
-    if (payload.segmento != null && String(payload.segmento).trim() !== "") {
-      prevPayload.segmento = payload.segmento;
-    }
-    var preview = getRenovacionCorreoPreview(prevPayload);
-
-    if (!preview.success) return preview;
-
-    var adjProc = _adjuntosRenovCorreoProcesar_(payload.emailAdjuntos || []);
-    if (payload.emailAdjuntos && payload.emailAdjuntos.length) {
-      var fallosAdj = adjProc.informe.filter(function (x) {
-        return !x.ok;
-      });
-      if (fallosAdj.length) {
-        return {
-          success: false,
-          message: "Adjuntos: " +
-            fallosAdj
-              .map(function (f) {
-                return f.nombre + " — " + (f.error || "error");
-              })
-              .join(" | "),
-          adjuntosInforme: adjProc.informe
-        };
-      }
-    }
-
-    var resProceso = processAnalystDecision(payload);
-    if (!resProceso.success) {
-      return resProceso;
-    }
-
-    var ccStr = preview.cc.length ? preview.cc.join(",") : "";
-    var mailOpts = { htmlBody: preview.htmlBody, noReply: true };
-    if (ccStr) mailOpts.cc = ccStr;
-    if (adjProc.blobs.length) mailOpts.attachments = adjProc.blobs;
-    try {
-      GmailApp.sendEmail(preview.para, preview.subject, "", mailOpts);
-    } catch (mailErr) {
-      return {
-        success: false,
-        message: "La gestión se guardó en la hoja, pero falló el envío del correo: " + String(mailErr)
-      };
-    }
-
-    var nombresAdj = [];
-    if (payload.emailAdjuntos && payload.emailAdjuntos.length) {
-      for (var ad = 0; ad < payload.emailAdjuntos.length; ad++) {
-        var x = payload.emailAdjuntos[ad];
-        nombresAdj.push(x.nombre || x.fileId || "archivo");
-      }
-    }
-
-    var entry = {
-      fecha: new Date().toISOString(),
-      accion: tipo,
-      para: preview.para,
-      cc: preview.cc,
-      asunto: preview.subject,
-      usuario: Session.getActiveUser().getEmail(),
-      segmento: preview.segmentoNorm,
-      adjuntos: nombresAdj
-    };
-    appendLogCorreoRenovacion_(poliza, entry);
-
-    return { success: true, message: "Gestión actualizada y correo enviado.", correo: entry };
-  } catch (e) {
-    return { success: false, message: "Error: " + e.toString() };
-  }
 }
 
 
