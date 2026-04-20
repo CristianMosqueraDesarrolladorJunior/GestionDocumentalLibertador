@@ -466,6 +466,53 @@ function processAnalystDecision(payload) {
   }
 }
 
+/** Texto para comparar perfiles en "Tabla Asignación Usuarios" (acentos / mayúsculas). */
+function normalizarTextoAsignacion_(s) {
+  return String(s || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/** Filas A:D de Tabla Asignación Usuarios (correo, estado, perfil, webhook). */
+function leerTablaAsignacionUsuarios_() {
+  try {
+    var lr = SheetAssignment.getLastRow();
+    if (lr < 2) return [];
+    var vals = SheetAssignment.getRange(2, 1, lr, 4).getDisplayValues();
+    var out = [];
+    var reMail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    for (var i = 0; i < vals.length; i++) {
+      var correo = String(vals[i][0] || "").trim().replace(/\s/g, "");
+      if (!correo || !reMail.test(correo)) continue;
+      out.push({
+        correo: correo,
+        estado: String(vals[i][1] || "").trim(),
+        perfil: String(vals[i][2] || "").trim(),
+        webhook: String(vals[i][3] || "").trim()
+      });
+    }
+    return out;
+  } catch (e) {
+    Logger.log("leerTablaAsignacionUsuarios_: " + e);
+    return [];
+  }
+}
+
+/**
+ * Metadatos para el cliente (preview correo renovación sin llamadas extra).
+ * Destinatarios según hoja de asignación; colas de corrección según Gestion.
+ */
+function getMetaCargaCorreoRenovacionCliente_() {
+  return {
+    usuariosAsignacion: leerTablaAsignacionUsuarios_(),
+    agentesRenovations: listarAgentesDisponiblesColaGestion_("Renovations"),
+    agentesCorreccionesBI: listarAgentesDisponiblesColaGestion_("CorreccionesBI")
+  };
+}
+
 function GetDataUser() {
   var UserMail = Session.getActiveUser().getEmail();
   Logger.log(UserMail)
@@ -478,6 +525,7 @@ function GetDataUser() {
 
   if (Rows != null) {
     Status = "Autenticado";
+    var metaCorreoRenovCliente = getMetaCargaCorreoRenovacionCliente_();
     let FilaDataRol = SheetAssignment.getRange("A:A").createTextFinder(UserMail).matchEntireCell(true).ignoreDiacritics(true).findPrevious().getRow();
     let Rol = SheetAssignment.getRange("C" + FilaDataRol).getDisplayValue();
     console.log
@@ -491,10 +539,10 @@ function GetDataUser() {
         }
       });
       console.log(DataRangeUserPending)
-      return [Status, DataRangeUserPending, UserMail, Rol];
+      return [Status, DataRangeUserPending, UserMail, Rol, metaCorreoRenovCliente];
     } else if (Rol == "Gestión Documental 2") {
       let data = GetDataBrokersYInmobiliarias();
-      return [Status, data, UserMail, Rol];
+      return [Status, data, UserMail, Rol, metaCorreoRenovCliente];
 
 
     } else if (Rol == "Analista Renovaciones") {
@@ -564,9 +612,11 @@ function GetDataUser() {
           renovadas: polizasRenovadas
         },
         UserMail,
-        Rol
+        Rol,
+        metaCorreoRenovCliente
       ];
     }
+    return [Status, [], UserMail, Rol, metaCorreoRenovCliente];
   } else {
     Status = "No Autenticado";
     return [Status, "Null"];
@@ -2250,50 +2300,13 @@ function _escapeHtmlRenovCorreo_(s) {
     .replace(/"/g, "&quot;");
 }
 
-function _defaultCorreoRenovParamRows_() {
-  return [
-    ["PARA_RENOVACIONES", "Renovaciones Arrendamiento (Bolívar)", "renovacionesarrendamiento@segurosbolivar.com", "Destinatario principal (Para)"],
-    ["CC_WILBER_BROKER", "Wilber Barrera", "wilber.barrera@aselibertador.com", "Copia fija segmento Bróker"],
-    ["CC_MAGDA_INMO", "Magda Ramírez", "magda.ramirez@segurosbolivar.com", "Copia segmento Inmobiliaria"],
-    ["EJEC_BROKER_FABIAN", "Jeison Sánchez (cuenta Fabián)", "jeison.sanchez@aselibertador.com", "Ejecutivo de cuenta Bróker"],
-    ["EJEC_BROKER_YENY", "Yeny Jaimes", "yeny.jaimes@aselibertador.com", "Ejecutivo de cuenta Bróker"]
-  ];
-}
-
 function getOrCreateCorreoRenovParamSheet_() {
   var sh = DataWereHouse.getSheetByName(SHEET_CORREO_RENOV_PARAM);
   if (!sh) {
     sh = DataWereHouse.insertSheet(SHEET_CORREO_RENOV_PARAM);
     sh.getRange(1, 1, 1, 4).setValues([["Clave", "Nombre", "Correo", "Especialidad"]]);
-    var seed = _defaultCorreoRenovParamRows_();
-    sh.getRange(2, 1, 1 + seed.length, 4).setValues(seed);
   }
   return sh;
-}
-
-function getMergedCorreoRenovParams_() {
-  var map = {};
-  var defaults = _defaultCorreoRenovParamRows_();
-  for (var d = 0; d < defaults.length; d++) {
-    map[defaults[d][0]] = { nombre: defaults[d][1], correo: defaults[d][2], especialidad: defaults[d][3] };
-  }
-  try {
-    var sh = DataWereHouse.getSheetByName(SHEET_CORREO_RENOV_PARAM);
-    if (!sh || sh.getLastRow() < 2) return map;
-    var rows = sh.getRange(2, 1, sh.getLastRow(), 4).getDisplayValues();
-    for (var i = 0; i < rows.length; i++) {
-      var clave = String(rows[i][0] || "").trim();
-      if (!clave) continue;
-      map[clave] = {
-        nombre: String(rows[i][1] || "").trim(),
-        correo: String(rows[i][2] || "").trim().replace(/\s/g, ""),
-        especialidad: String(rows[i][3] || "").trim()
-      };
-    }
-  } catch (e) {
-    Logger.log("getMergedCorreoRenovParams_: " + e);
-  }
-  return map;
 }
 
 /**
@@ -2332,9 +2345,7 @@ function guardarParamCorreoRenovacion(filas) {
       sh.getRange(2, 1, sh.getLastRow(), 4).clearContent();
     }
     if (!filas || !filas.length) {
-      var seed = _defaultCorreoRenovParamRows_();
-      sh.getRange(2, 1, 1 + seed.length, 4).setValues(seed);
-      return { success: true, message: "Restaurados valores por defecto." };
+      return { success: true, message: "Sin filas CRM; los correos de renovación usan Tabla Asignación Usuarios." };
     }
     var matrix = [];
     for (var i = 0; i < filas.length; i++) {
@@ -2379,24 +2390,48 @@ function _emailPropietario_(dataLead) {
   return "";
 }
 
-function resolveEjecutivoBrokerCC_(emailAnalistaAsignado, params) {
-  var e = String(emailAnalistaAsignado || "").toLowerCase().trim();
-  if (e.indexOf("yeny.jaimes") !== -1 || (e.indexOf("yeny") !== -1 && e.indexOf("jaimes") !== -1)) {
-    return params.EJEC_BROKER_YENY ? params.EJEC_BROKER_YENY.correo : "yeny.jaimes@aselibertador.com";
+function filasAsignacionActivas_(usuarios) {
+  var out = [];
+  for (var i = 0; i < usuarios.length; i++) {
+    if (normalizarTextoAsignacion_(usuarios[i].estado) === "activo") out.push(usuarios[i]);
   }
-  if (e.indexOf("jeison.sanchez") !== -1 || e.indexOf("jeison") !== -1) {
-    return params.EJEC_BROKER_FABIAN ? params.EJEC_BROKER_FABIAN.correo : "jeison.sanchez@aselibertador.com";
+  return out;
+}
+
+function filtrarPorPerfilNorm_(activos, testFn) {
+  var r = [];
+  for (var i = 0; i < activos.length; i++) {
+    if (testFn(normalizarTextoAsignacion_(activos[i].perfil))) r.push(activos[i]);
   }
-  return params.EJEC_BROKER_FABIAN ? params.EJEC_BROKER_FABIAN.correo : "jeison.sanchez@aselibertador.com";
+  return r;
+}
+
+function elegirPorCoincidenciaAnalista_(candidatos, emailAnalistaAsignado) {
+  if (!candidatos || !candidatos.length) return null;
+  var e = String(emailAnalistaAsignado || "").toLowerCase().trim().replace(/\s/g, "");
+  if (!e) return candidatos[0];
+  var j;
+  for (j = 0; j < candidatos.length; j++) {
+    if (candidatos[j].correo.toLowerCase() === e) return candidatos[j];
+  }
+  var local = e.indexOf("@") > 0 ? e.split("@")[0] : "";
+  for (j = 0; j < candidatos.length; j++) {
+    var c = candidatos[j].correo.toLowerCase();
+    if (local && c.split("@")[0] === local) return candidatos[j];
+  }
+  return candidatos[0];
 }
 
 /**
- * Arma Para + CC según segmento (US-01). No incluye correos adicionales del cliente (US-02).
+ * Arma Para + CC según segmento leyendo perfiles activos en Tabla Asignación Usuarios.
  */
 function buildRenovacionRecipientPlan_(segmentoNorm, dataLead, emailAnalistaAsignado) {
-  var params = getMergedCorreoRenovParams_();
-  var para = params.PARA_RENOVACIONES && params.PARA_RENOVACIONES.correo
-    ? params.PARA_RENOVACIONES.correo
+  var activos = filasAsignacionActivas_(leerTablaAsignacionUsuarios_());
+  var paraRows = filtrarPorPerfilNorm_(activos, function (np) {
+    return np.indexOf("cuenta comercial") >= 0 || (np.indexOf("notificacion") >= 0 && np.indexOf("comercial") >= 0);
+  });
+  var para = paraRows.length
+    ? String(paraRows[0].correo).trim().replace(/\s/g, "")
     : "renovacionesarrendamiento@segurosbolivar.com";
   var cc = [];
   var ccMeta = [];
@@ -2408,25 +2443,51 @@ function buildRenovacionRecipientPlan_(segmentoNorm, dataLead, emailAnalistaAsig
       ccMeta.push({ nombre: "Propietario / tomador", correo: ep, rol: "CC segmento Propietario" });
     }
   } else if (segmentoNorm === "BROKER") {
-    var ej = resolveEjecutivoBrokerCC_(emailAnalistaAsignado, params);
-    if (ej && _validEmail_(ej)) {
-      cc.push(ej);
-      ccMeta.push({ nombre: "Ejecutivo de cuenta", correo: ej, rol: "CC segmento Bróker" });
+    var segBrokers = filtrarPorPerfilNorm_(activos, function (np) {
+      return np.indexOf("segmento") >= 0 && np.indexOf("broker") >= 0;
+    });
+    var kb;
+    for (kb = 0; kb < segBrokers.length; kb++) {
+      var emW = String(segBrokers[kb].correo).trim().replace(/\s/g, "");
+      if (_validEmail_(emW) && cc.indexOf(emW) === -1) {
+        cc.push(emW);
+        ccMeta.push({ nombre: segBrokers[kb].perfil || "Notificación segmento Bróker", correo: emW, rol: "CC segmento Bróker" });
+      }
     }
-    var w = params.CC_WILBER_BROKER && params.CC_WILBER_BROKER.correo
-      ? params.CC_WILBER_BROKER.correo
-      : "wilber.barrera@aselibertador.com";
-    if (w && _validEmail_(w) && cc.indexOf(w) === -1) {
-      cc.push(w);
-      ccMeta.push({ nombre: "Wilber Barrera", correo: w, rol: "CC fija Bróker" });
+    var ejRows = filtrarPorPerfilNorm_(activos, function (np) {
+      if (np.indexOf("inmobiliaria") >= 0) return false;
+      return np.indexOf("ejecutivo") >= 0 && np.indexOf("broker") >= 0;
+    });
+    var ejPick = elegirPorCoincidenciaAnalista_(ejRows, emailAnalistaAsignado);
+    if (ejPick && _validEmail_(ejPick.correo)) {
+      var emE = String(ejPick.correo).trim().replace(/\s/g, "");
+      if (cc.indexOf(emE) === -1) {
+        cc.push(emE);
+        ccMeta.push({ nombre: ejPick.perfil || "Ejecutivo de cuenta", correo: emE, rol: "CC ejecutivo cuenta Bróker" });
+      }
     }
   } else if (segmentoNorm === "INMOBILIARIA") {
-    var m = params.CC_MAGDA_INMO && params.CC_MAGDA_INMO.correo
-      ? params.CC_MAGDA_INMO.correo
-      : "magda.ramirez@segurosbolivar.com";
-    if (m && _validEmail_(m)) {
-      cc.push(m);
-      ccMeta.push({ nombre: "Magda Ramírez", correo: m, rol: "CC segmento Inmobiliaria" });
+    var segInm = filtrarPorPerfilNorm_(activos, function (np) {
+      return np.indexOf("segmento") >= 0 && np.indexOf("inmobiliaria") >= 0;
+    });
+    var ki;
+    for (ki = 0; ki < segInm.length; ki++) {
+      var emM = String(segInm[ki].correo).trim().replace(/\s/g, "");
+      if (_validEmail_(emM) && cc.indexOf(emM) === -1) {
+        cc.push(emM);
+        ccMeta.push({ nombre: segInm[ki].perfil || "Notificación segmento Inmobiliaria", correo: emM, rol: "CC segmento Inmobiliaria" });
+      }
+    }
+    var ejInm = filtrarPorPerfilNorm_(activos, function (np) {
+      return np.indexOf("ejecutivo") >= 0 && np.indexOf("inmobiliaria") >= 0;
+    });
+    var ejInmPick = elegirPorCoincidenciaAnalista_(ejInm, emailAnalistaAsignado);
+    if (ejInmPick && _validEmail_(ejInmPick.correo)) {
+      var emEI = String(ejInmPick.correo).trim().replace(/\s/g, "");
+      if (cc.indexOf(emEI) === -1) {
+        cc.push(emEI);
+        ccMeta.push({ nombre: ejInmPick.perfil || "Ejecutivo de cuenta", correo: emEI, rol: "CC ejecutivo cuenta Inmobiliaria" });
+      }
     }
   }
 
@@ -2611,8 +2672,9 @@ function _subjectRenovacion_(tipoAccion, poliza) {
  * Vista previa + metadatos para el modal (US-02, US-03). No envía correo.
  * payload: { tipoAccionCorreo, dataLead, leadSelect?, segmentoSheetColumn?, segmento? (prioridad para normalizar segmento / cola CorreccionesBI), emailAnalistaAsignado?, observations?, notasAnalista?, correoAdicional1?, correoAdicional2?, ccSeleccionados? }
  * Si ccSeleccionados es undefined/null → se usan los marcados por defecto (reglas de segmento). Si es array (puede estar vacío) → refleja la selección del analista.
+ * Solo uso interno (envío / prueba en seco); la vista previa en webapp usa datos de GetDataUser.
  */
-function getRenovacionCorreoPreview(payload) {
+function buildRenovacionCorreoPreviewPayload_(payload) {
   try {
     var dataLead = payload.dataLead || {};
     var leadSelect = payload.leadSelect || {};
@@ -2804,7 +2866,7 @@ function probarCorreoRenovacionSinEnvio(payload) {
     if (payload.segmento != null && String(payload.segmento).trim() !== "") {
       prevIn.segmento = payload.segmento;
     }
-    var preview = getRenovacionCorreoPreview(prevIn);
+    var preview = buildRenovacionCorreoPreviewPayload_(prevIn);
 
     if (!preview.success) {
       return Object.assign({ dryRun: true }, preview);
@@ -2874,7 +2936,7 @@ function ejecutarPruebasAutomaticasCorreoRenovacion() {
   });
   resultados.push({ caso: "CORRECTION con observaciones", ok: p2.success, detalle: p2 });
 
-  var p3 = getRenovacionCorreoPreview({
+  var p3 = buildRenovacionCorreoPreviewPayload_({
     tipoAccionCorreo: "APPROVE",
     dataLead: { poliza: "P2", segmento: "BROKER", email: "b@example.com" },
     leadSelect: {},
@@ -2948,7 +3010,7 @@ function procesarDecisionAnalistaConCorreo(payload) {
     if (payload.segmento != null && String(payload.segmento).trim() !== "") {
       prevPayload.segmento = payload.segmento;
     }
-    var preview = getRenovacionCorreoPreview(prevPayload);
+    var preview = buildRenovacionCorreoPreviewPayload_(prevPayload);
 
     if (!preview.success) return preview;
 

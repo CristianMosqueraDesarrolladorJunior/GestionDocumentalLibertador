@@ -1,0 +1,2922 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <meta content="width=device-width, initial-scale=1.0, shrink-to-fit=no" name="viewport" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans:ital,wght@0,100..900;1,100..900&display=swap"
+    rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/@n8n/chat/dist/style.css" rel="stylesheet" />
+
+  <script src="https://unpkg.com/@dotlottie/player-component@latest/dist/dotlottie-player.mjs" type="module"></script>
+  <!-- Fonts and icons -->
+  <?!= include("assets/css/overlay.css");?>
+  <?!= include("jquery_3.7");?>
+  <?!= include("webfont.min.js");?>
+  <?!= include("popper.min.js");?>
+  <?!= include("bootstrap.min.js");?>
+  <?!= include("jquery.scrollbar.min.js");?>
+  <?!= include("chart.min.js");?>
+  <?!= include("jquery.sparkline.min.js");?>
+  <?!= include("circles.min.js");?>
+  <?!= include("datatables.min.js");?>
+  <?!= include("bootstrap-notify.min.js");?>
+  <?!= include("owl.carousel.min.js");?>
+  <?!= include("sweetalert.min.js");?>
+  <?!= include("kaiadmin.min.js");?>
+  <?!= include("Main.JS");?>
+  <?!= include("bootstrap.min.css");?>
+  <?!= include("plugins.min.css");?>
+  <?!= include("owl.carousel.min.css");?>
+  <?!= include("kaiadmin.min.css");?>
+  <?!= include("Style.css");?>
+  <?!= include("fonts.min.css");?>
+
+  <style>
+    .card-futuristic {
+      border: none;
+      border-radius: 15px;
+      color: #fff;
+      cursor: pointer;
+      transition: transform 0.3s ease, box-shadow 0.3s ease;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .card-futuristic:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 10px 20px rgba(0, 0, 0, 0.3);
+    }
+
+    /* Professional gradient backgrounds in red and blue tones */
+    .card-expedicion {
+      background: linear-gradient(135deg, #003366 0%, #0055aa 100%);
+    }
+
+    .card-especial {
+      background: linear-gradient(135deg, #E60000 0%, #B30000 100%);
+    }
+
+    .card-renovada {
+      background: linear-gradient(135deg, #0055aa 0%, #003366 100%);
+    }
+
+    /* Forzar blanco en texto e iconos para las 3 tarjetas */
+    .card-expedicion .card-category,
+    .card-expedicion .card-title,
+    .card-expedicion i,
+    .card-especial .card-category,
+    .card-especial .card-title,
+    .card-especial i,
+    .card-renovada .card-category,
+    .card-renovada .card-title,
+    .card-renovada i {
+      color: #ffffff !important;
+    }
+
+    .icon-big i {
+      font-size: 3rem;
+      opacity: 0.8;
+    }
+
+    .card-category {
+      font-size: 0.9rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      margin-bottom: 5px;
+    }
+
+    .card-title {
+      font-size: 1.8rem;
+      font-weight: 700;
+    }
+
+    /* Renovaciones: mismo offset que .main-panel > .container (navbar fija del tema) */
+    .main-panel>#ModuleRenovaciones {
+      margin-top: 70px;
+      padding-left: 12px;
+      padding-right: 12px;
+      box-sizing: border-box;
+    }
+
+    @media (min-width: 768px) {
+      .main-panel>#ModuleRenovaciones {
+        padding-left: 24px;
+        padding-right: 24px;
+      }
+    }
+
+    .renovacion-correo-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 2000;
+      background: rgba(15, 23, 42, 0.82);
+      backdrop-filter: blur(6px);
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+    }
+
+    .renovacion-correo-overlay.is-open {
+      display: flex !important;
+    }
+
+    .renovacion-correo-overlay .renovacion-correo-panel {
+      width: 100%;
+      max-width: 940px;
+      max-height: min(92vh, 880px);
+      border-radius: 16px;
+      margin: 0;
+    }
+
+    .renovacion-correo-overlay .renovacion-correo-scroll {
+      flex: 1 1 auto;
+      min-height: 0;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    #renovacionCorreoCandidatosContainer .renov-correo-row:hover {
+      background: #f8f9fa;
+    }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    :root {
+      /* CAMBIO: Rojo Corporativo (Principal) */
+      --primary-gradient: linear-gradient(135deg, #E60000 0%, #B30000 100%);
+
+      /* CAMBIO: Verde (Éxito) - Se mantiene o se ajusta un poco */
+      --success-gradient: linear-gradient(135deg, #28a745 0%, #218838 100%);
+
+      /* CAMBIO: Amarillo/Naranja (Advertencia) - Quitamos el rosado */
+      --warning-gradient: linear-gradient(135deg, #ffc107 0%, #fd7e14 100%);
+
+      --danger-gradient: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+      --dark-bg: #1a1d2e;
+      --card-bg: #ffffff;
+      --text-primary: #2d3436;
+      --text-secondary: #636e72;
+      --border-radius: 16px;
+      --shadow-soft: 0 8px 32px rgba(0, 0, 0, 0.08);
+      --shadow-hover: 0 12px 48px rgba(0, 0, 0, 0.12);
+    }
+
+    .modal-dialog-custom {
+      max-width: 95%;
+      margin: 1rem auto;
+    }
+
+    .modal-content-custom {
+      border: none;
+      border-radius: var(--border-radius);
+      overflow: hidden;
+      background: linear-gradient(145deg, #f8f9fa 0%, #e9ecef 100%);
+    }
+
+    .modal-header-custom {
+      background: var(--primary-gradient);
+      color: white;
+      padding: 1.5rem 2rem;
+      border: none;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .modal-header-custom::before {
+      content: '';
+      position: absolute;
+      top: -50%;
+      right: -50%;
+      width: 200%;
+      height: 200%;
+      background: radial-gradient(circle, rgba(255, 255, 255, 0.1) 0%, transparent 70%);
+      animation: pulse 4s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+
+      0%,
+      100% {
+        transform: scale(1);
+        opacity: 1;
+      }
+
+      50% {
+        transform: scale(1.1);
+        opacity: 0.8;
+      }
+    }
+
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 0.5rem 1rem;
+      border-radius: 50px;
+      font-weight: 600;
+      font-size: 0.875rem;
+      gap: 0.5rem;
+      box-shadow: var(--shadow-soft);
+    }
+
+    .status-approved {
+      background: linear-gradient(135deg, #003366 0%, #0055aa 100%);
+      color: white;
+    }
+
+    .status-corrections {
+      background: linear-gradient(135deg, #E60000 0%, #B30000 100%);
+      color: white;
+    }
+
+    .status-pending {
+      background: linear-gradient(135deg, #E60000 0%, #003366 100%);
+      color: white;
+    }
+
+    .ai-verification-panel {
+      background: var(--card-bg);
+      border-radius: var(--border-radius);
+      padding: 2rem;
+      box-shadow: var(--shadow-soft);
+      margin-bottom: 1.5rem;
+      position: relative;
+      transition: all 0.3s ease;
+    }
+
+    .ai-verification-panel:hover {
+      box-shadow: var(--shadow-hover);
+      transform: translateY(-2px);
+    }
+
+    .ai-icon-badge {
+      width: 60px;
+      height: 60px;
+      border-radius: 50%;
+      background: var(--primary-gradient);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.5rem;
+      color: white;
+      box-shadow: 0 4px 16px rgba(102, 126, 234, 0.4);
+      animation: rotate 3s linear infinite;
+    }
+
+    @keyframes rotate {
+      0% {
+        transform: rotate(0deg);
+      }
+
+      100% {
+        transform: rotate(360deg);
+      }
+    }
+
+    .document-card {
+      background: var(--card-bg);
+      border-radius: 12px;
+      padding: 1.25rem;
+      margin-bottom: 1rem;
+      border: 2px solid transparent;
+      transition: all 0.3s ease;
+      position: relative;
+    }
+
+    .document-card:hover {
+      border-color: #003366;
+      /* Borde al pasar el mouse: Azul */
+      box-shadow: var(--shadow-soft);
+      transform: translateX(4px);
+    }
+
+    .document-card.verified {
+      border-left: 4px solid #11998e;
+      background: linear-gradient(to right, rgba(17, 153, 142, 0.05), white);
+    }
+
+    .document-card.needs-correction {
+      border-left: 4px solid #f5576c;
+      background: linear-gradient(to right, rgba(245, 87, 108, 0.05), white);
+    }
+
+    .document-icon {
+      width: 48px;
+      height: 48px;
+      border-radius: 12px;
+      background: linear-gradient(135deg, rgba(0, 51, 102, 0.1) 0%, rgba(0, 64, 128, 0.1) 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.25rem;
+      color: #003366;
+    }
+
+    .data-extraction-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 1rem;
+      margin-top: 1.5rem;
+    }
+
+    .data-item {
+      background: linear-gradient(145deg, #ffffff, #f8f9fa);
+      padding: 1rem;
+      border-radius: 12px;
+      border: 1px solid #e9ecef;
+      transition: all 0.2s ease;
+    }
+
+    .data-item:hover {
+      border-color: #003366;
+      /* Borde al pasar el mouse: Azul */
+      box-shadow: 0 4px 12px rgba(0, 51, 102, 0.1);
+    }
+
+    .data-label {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      color: var(--text-secondary);
+      font-weight: 600;
+      letter-spacing: 0.5px;
+      margin-bottom: 0.5rem;
+    }
+
+    .data-value {
+      font-size: 1rem;
+      color: var(--text-primary);
+      font-weight: 600;
+    }
+
+    .action-button {
+      padding: 0.875rem 2rem;
+      border-radius: 50px;
+      font-weight: 600;
+      border: none;
+      transition: all 0.3s ease;
+      box-shadow: var(--shadow-soft);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      font-size: 0.875rem;
+    }
+
+    .action-button-approve {
+      background: linear-gradient(135deg, #003366 0%, #0055aa 100%);
+      color: white;
+    }
+
+    .action-button-approve:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 24px rgba(0, 51, 102, 0.3);
+    }
+
+    .action-button-request-correction {
+      background: linear-gradient(135deg, #E60000 0%, #B30000 100%);
+      color: white;
+    }
+
+    .action-button-request-correction:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 24px rgba(230, 0, 0, 0.3);
+    }
+
+    .action-button-declinado {
+      background: linear-gradient(135deg, #B30000 0%, #800000 100%);
+      color: white;
+    }
+
+    .action-button-declinado:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 24px rgba(179, 0, 0, 0.3);
+    }
+
+    .correction-note {
+      background: #fff3cd;
+      border-left: 4px solid #ffc107;
+      padding: 1rem;
+      border-radius: 8px;
+      margin-top: 1rem;
+    }
+
+    .ai-confidence-meter {
+      height: 8px;
+      background: #e9ecef;
+      border-radius: 50px;
+      overflow: hidden;
+      margin-top: 0.5rem;
+    }
+
+    .ai-confidence-fill {
+      height: 100%;
+      background: linear-gradient(135deg, #003366 0%, #0055aa 100%);
+      border-radius: 50px;
+      transition: width 1s ease;
+    }
+
+    .timeline-item {
+      position: relative;
+      padding-left: 2rem;
+      padding-bottom: 1.5rem;
+      border-left: 2px solid #e9ecef;
+    }
+
+    .timeline-item:last-child {
+      border-left: 2px solid transparent;
+    }
+
+    .timeline-dot {
+      position: absolute;
+      left: -6px;
+      top: 0;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: var(--primary-gradient);
+      box-shadow: 0 0 0 4px #f8f9fa;
+    }
+
+    .glass-effect {
+      background: rgba(255, 255, 255, 0.9);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+
+    .floating-label {
+      position: absolute;
+      top: -8px;
+      left: 16px;
+      background: white;
+      padding: 0 8px;
+      font-size: 0.75rem;
+      color: #003366;
+      font-weight: 600;
+    }
+
+    .pulse-animation {
+      animation: pulse-dot 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    }
+
+    @keyframes pulse-dot {
+
+      0%,
+      100% {
+        opacity: 1;
+      }
+
+      50% {
+        opacity: 0.5;
+      }
+    }
+
+    .scroll-area {
+      max-height: 70vh;
+      overflow-y: auto;
+      padding-right: 1rem;
+    }
+
+    .scroll-area::-webkit-scrollbar {
+      width: 8px;
+    }
+
+    .scroll-area::-webkit-scrollbar-track {
+      background: #f1f1f1;
+      border-radius: 10px;
+    }
+
+    .scroll-area::-webkit-scrollbar-thumb {
+      background: linear-gradient(135deg, #003366, #E60000);
+      border-radius: 10px;
+    }
+
+    .scroll-area::-webkit-scrollbar-thumb:hover {
+      background: linear-gradient(135deg, #764ba2, #667eea);
+    }
+
+    .premium-badge {
+      display: inline-block;
+      padding: 0.25rem 0.75rem;
+      background: linear-gradient(135deg, #ffd700, #ffed4e);
+      color: #1a1d2e;
+      border-radius: 20px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+
+    .stats-number {
+      font-size: 2.5rem;
+      font-weight: 700;
+      background: var(--primary-gradient);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="overlay" style="display:none;" class="overlay justify-content-center row w-100 align-content-center">
+    <div class="col-12 col-md-4">
+      <div class="card rounded-5 bg-black shadow-lg border border-dark">
+        <div class="card-body d-flex justify-content-center align-content-center text-center mt--1">
+
+          <lottie-player src="https://lottie.host/eba61c25-ee96-41d7-a380-da6d47b4855d/cAdXK4XNQX.json"
+            background="##fff" speed="1" style="width: 300px; height: 300px" loop autoplay direction="1" mode="normal">
+          </lottie-player>
+        </div>
+        <div class="card-footer">
+          <h1 style="font-size: 35px;font-family: math;" class="text-center text-white">¡Gestionando Solicitud!</h1>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  <div id="lock-screen" style="display: none;">
+    <div class="content">
+
+
+      <dotlottie-player src="https://lottie.host/d87067fd-6e72-4749-9f15-6b2a02f2fe06/EOwWjYLKyB.lottie"
+        background="transparent" speed="1" style="width: 220px; height: 220px; margin: 0 auto;" loop autoplay>
+      </dotlottie-player>
+
+      <h2>Acceso Restringido</h2>
+      <p>No tienes permiso para acceder al CRM.</p>
+      <p>Por favor, contacta al coordinador.</p>
+    </div>
+  </div>
+
+
+
+
+
+
+
+  <div class="wrapper">
+    <!-- Sidebar -->
+    <div class="sidebar sidebar-style-2" data-background-color="dark">
+      <div class="sidebar-logo">
+        <!-- Logo Header -->
+        <div class="logo-header" data-background-color="dark">
+          <a class="logo">
+            <img
+                src="https://bolivargo.solucionesbolivar.com/wp-content/uploads/2022/06/logo-seguros-bolivar-blanco-low.png"
+                alt="navbar brand"
+                class="navbar-brand w-100 h-100"
+              />
+          </a>
+          <div class="nav-toggle">
+            <button class="btn btn-toggle toggle-sidebar">
+                <i class="gg-menu-right"></i>
+              </button>
+            <button class="btn btn-toggle sidenav-toggler">
+                <i class="gg-menu-left"></i>
+              </button>
+          </div>
+          <button class="topbar-toggler more">
+              <i class="gg-more-vertical-alt"></i>
+            </button>
+        </div>
+        <!-- End Logo Header -->
+      </div>
+      <div class="sidebar-wrapper scrollbar scrollbar-inner">
+        <div class="sidebar-content">
+          <ul class="nav nav-secondary">
+            <li class="nav-section">
+              <span class="sidebar-mini-icon">
+                  <i class="fa fa-ellipsis-h"></i>
+                </span>
+              <h4 class="text-section">Modulos de Gestión</h4>
+            </li>
+            <li id="ListModuleGestionDocumental" class="nav-item collapsed pt-2 active">
+              <a href="#" id="ButtonMenuGestionDocumental">
+                <i class="fa-solid fa-file-circle-check fs-3"></i>
+                <p>Gestión Documental</p>
+              </a>
+            </li>
+            <li id="ListModuleRenovacionesNav" class="nav-item collapsed pt-2">
+              <a href="#" id="ButtonMenuRenovaciones">
+                <i class="fa-solid fa-sync-alt fs-3"></i>
+                <p>Renovaciones</p>
+              </a>
+            </li>
+            <!-- <li id="ListModuleValidationDocsRenovacion" class="nav-item collapsed" hidden>
+              <a id="ButtonCargarRegistrosValidacionDocumentalRenovacion" data-bs-toggle="collapse">
+                <i class="fa-solid fa-repeat fs-3"></i>
+                <p>Gestión Documental Renovacion</p>
+              </a>
+            </li> -->
+          </ul>
+        </div>
+      </div>
+    </div>
+    <!-- End Sidebar -->
+
+
+    <div class="main-panel">
+      <div class="main-header">
+        <!-- Navbar Header -->
+        <nav class="navbar navbar-header navbar-header-transparent navbar-expand-lg border-bottom">
+          <div class="container-fluid">
+            <ul class="navbar-nav topbar-nav ms-md-auto align-items-center">
+              <li class="nav-item topbar-user dropdown hidden-caret">
+                <a class="dropdown-toggle profile-pic" data-bs-toggle="dropdown" href="#" aria-expanded="false">
+                  <div class="avatar-sm">
+                    <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQgee_ioFQrKoyiV3tnY77MLsPeiD15SGydSQ&s" class="avatar-img rounded-circle"/>
+                  </div>
+                  <span class="profile-username">
+                    <span class="fw-bold" id="UserId"></span>
+                  </span>
+                </a>
+              </li>
+            </ul>
+          </div>
+        </nav>
+        <!-- End Navbar -->
+      </div>
+
+      <div class="container" id="ModuleGestionDocumental">
+        <div class="page-inner">
+          <div class="row justify-content-center">
+            <div class="col-sm-6 col-md-3">
+              <div class="card card-stats card-round">
+                <div class="card-body">
+                  <div class="row align-items-center">
+                    <div class="col-icon">
+                      <div class="icon-big text-center icon-danger bubble-shadow-small">
+                        <i class="bi bi-cone-striped"></i>
+                      </div>
+                    </div>
+                    <div class="col col-stats ms-3 ms-sm-0">
+                      <div class="numbers">
+                        <p class="card-category">Total Pendientes</p>
+                        <h4 class="card-title" id="Total_Length_Clients"></h4>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="row">
+            <div class="col-md-12">
+              <div class="card">
+                <div class="card-body">
+                  <div class="table-responsive">
+                    <table id="Table_Clients_Pending"
+                      class="display table table-striped table-hover table-bordered w-100">
+                    </table>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="container-fluid pt-3" id="ModuleRenovaciones" hidden>
+
+        <div class="row mt-2">
+          <div class="col-md-4">
+            <div class="card card-stats card-futuristic card-expedicion" onclick="FilterRenovaciones('pendientes')">
+              <div class="card-body">
+                <div class="row">
+                  <div class="col-5">
+                    <div class="icon-big text-center">
+                      <i class="bi bi-send-check-fill"></i>
+                    </div>
+                  </div>
+                  <div class="col-7 col-stats">
+                    <div class="numbers">
+                      <p class="card-category">Enviar a Expedición</p>
+                      <h4 class="card-title" id="TotalExpedicion">0</h4>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="card card-stats card-futuristic card-especial" onclick="FilterRenovaciones('especiales')">
+              <div class="card-body">
+                <div class="row">
+                  <div class="col-5">
+                    <div class="icon-big text-center">
+                      <i class="bi bi-exclamation-diamond-fill"></i>
+                    </div>
+                  </div>
+                  <div class="col-7 col-stats">
+                    <div class="numbers">
+                      <p class="card-category">Casos Especiales</p>
+                      <h4 class="card-title" id="TotalEspeciales">0</h4>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="card card-stats card-futuristic card-renovada" onclick="FilterRenovaciones('renovadas')">
+              <div class="card-body">
+                <div class="row">
+                  <div class="col-5">
+                    <div class="icon-big text-center">
+                      <i class="bi bi-check-circle-fill"></i>
+                    </div>
+                  </div>
+                  <div class="col-7 col-stats">
+                    <div class="numbers">
+                      <p class="card-category">Renovadas / Finalizadas</p>
+                      <h4 class="card-title" id="TotalRenovadas">0</h4>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="col-md-12">
+            <div class="card">
+              <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
+                <h4 class="card-title mb-0">Gestión de Pólizas</h4>
+                <button type="button" class="btn btn-sm btn-outline-primary d-none" id="btnParamCorreoRenovacion"
+                  onclick="abrirModalParamCorreoRenovacion()">
+                  <i class="bi bi-envelope-gear me-1"></i>Parámetros correo renovación
+                </button>
+              </div>
+              <div class="card-body">
+                <div class="table-responsive">
+                  <table id="Table_Renovaciones" class="display table table-striped table-hover" cellspacing="0"
+                    width="100%">
+                    <thead>
+                      <tr>
+                        <th>Fecha Ingreso</th>
+                        <th>Póliza</th>
+                        <th>Asegurado</th>
+                        <th>Canon</th>
+                        <th>Estado</th>
+                        <th>Acción</th>
+                      </tr>
+                    </thead>
+                    <tbody></tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+
+
+      <!-- Modal Gestión Documental con IA -->
+      <div class="modal fade" id="modalGestionDocumentalIA" tabindex="-1"
+        aria-labelledby="modalGestionDocumentalIALabel" aria-hidden="true" data-bs-focus="false">
+        <div class="modal-dialog modal-dialog-custom">
+          <div class="modal-content modal-content-custom">
+
+            <!-- Header -->
+            <div class="modal-header-custom">
+              <div class="d-flex justify-content-between align-items-center w-100 position-relative"
+                style="z-index: 1;">
+                <div class="d-flex align-items-center gap-3">
+                  <div class="ai-icon-badge">
+                    <i class="fas fa-robot"></i>
+                  </div>
+                  <div>
+                    <h4 class="mb-0" style="font-weight: 700;">Gestión Documental Inteligente</h4>
+                    <p class="mb-0 opacity-75" style="font-size: 0.9rem;">Verificación de cargue de documentos
+                    </p>
+                  </div>
+                </div>
+                <div class="d-flex align-items-center gap-3">
+                  <div class="status-badge" id="statusBadge">
+                    <i class="fas fa-spinner fa-spin"></i>
+                    <span>Verificando...</span>
+                  </div>
+                  <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Body -->
+            <div class="modal-body p-4">
+              <div class="container-fluid">
+                <div class="row g-4">
+
+                  <!-- Columna Izquierda: Verificación y Documentos -->
+                  <div class="col-lg-7">
+                    <div class="scroll-area">
+
+                      <!-- Panel de Verificación IA -->
+                      <div class="ai-verification-panel">
+                        <div class="d-flex align-items-start gap-3 mb-3">
+                          <div style="font-size: 2.5rem; color: #667eea;">
+                            <i class="fas fa-brain"></i>
+                          </div>
+                          <div class="flex-grow-1">
+                            <h5 class="mb-2" style="font-weight: 700; color: var(--text-primary);">
+                              Resultado de cargue Automático
+                            </h5>
+                            <p class="text-muted mb-0" style="font-size: 0.9rem;">
+                              El Sistema verificó el cargue de documentos
+                            </p>
+                          </div>
+                          <div class="text-end">
+                            <div class="stats-number" id="confidenceScore">0%</div>
+                            <small class="text-muted">Gestion</small>
+                          </div>
+                        </div>
+
+                        <div class="ai-confidence-meter">
+                          <div class="ai-confidence-fill" id="confidenceFill" style="width: 0%;"></div>
+                        </div>
+
+                        <div class="mt-3 p-3 rounded"
+                          style="background: linear-gradient(135deg, #667eea10, #764ba210);">
+                          <div class="d-flex align-items-center gap-2">
+                            <i class="fas fa-check-circle text-success" style="font-size: 1.25rem;"></i>
+                            <strong id="verificationMessage">Documentos verificados y coinciden con el lead</strong>
+                          </div>
+                        </div>
+                      </div>
+
+                      <!-- Documentos Cargados -->
+                      <div class="mb-4">
+                        <h5 class="mb-3" style="font-weight: 700; color: var(--text-primary);">
+                          <i class="fas fa-file-upload me-2"></i>Carga de Documentos Requeridos
+                        </h5>
+
+                        <div class="document-card" id="card-poliza">
+                          <input type="file" id="input-poliza" hidden accept=".pdf,.jpg,.png" onchange="procesarArchivo('poliza', this)">
+                          <div class="d-flex align-items-center gap-3">
+                            <div class="document-icon" id="icon-poliza">
+                              <i class="fas fa-file-medical"></i>
+                            </div>
+                            <div class="flex-grow-1">
+                              <h6 class="mb-1 fw-bold">Póliza de Renovada</h6>
+                              <small class="text-muted" id="name-poliza">Pendiente de carga...</small>
+                              <div class="mt-2" id="badges-poliza">
+                                <span class="badge bg-secondary">Pendiente</span>
+                              </div>
+                            </div>
+                            <div class="text-end">
+                              <button class="btn btn-sm btn-primary rounded-pill mb-1" onclick="handleSmartUpload('poliza')">
+                                <i class="fas fa-tasks me-1"></i>Gestionar
+                              </button>
+                              <button class="btn btn-sm btn-outline-dark rounded-pill mb-1 d-none" id="btn-view-poliza" onclick="verDocumento('poliza')">
+                                 <i class="fas fa-eye"></i>
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div class="document-card" id="card-polizaAjuste">
+                          <input type="file" id="input-polizaAjuste" hidden accept=".pdf,.jpg,.png" onchange="procesarArchivo('polizaAjuste', this)">
+                          <div class="d-flex align-items-center gap-3">
+                            <div class="document-icon" id="icon-polizaAjuste">
+                              <i class="fas fa-file-invoice-dollar"></i>
+                            </div>
+                            <div class="flex-grow-1">
+                              <h6 class="mb-1 fw-bold">Póliza Renovada con Ajuste</h6>
+                              <small class="text-muted" id="name-polizaAjuste">Pendiente de carga (Opcional)...</small>
+                              <div class="mt-2" id="badges-polizaAjuste">
+                                <span class="badge bg-secondary">Pendiente</span>
+                              </div>
+                            </div>
+                            <div class="text-end">
+                              <button class="btn btn-sm btn-primary rounded-pill mb-1" onclick="handleSmartUpload('polizaAjuste')">
+                              <i class="fas fa-tasks me-1"></i>Gestionar
+                            </button>
+                              <button class="btn btn-sm btn-outline-dark rounded-pill mb-1 d-none" id="btn-view-polizaAjuste" onclick="verDocumento('polizaAjuste')">
+                              <i class="fas fa-eye"></i>
+                            </button>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div class="document-card" id="card-cedula">
+                          <input type="file" id="input-cedula" hidden accept=".pdf,.jpg,.png" onchange="procesarArchivo('cedula', this)">
+                          <div class="d-flex align-items-center gap-3">
+                            <div class="document-icon" id="icon-cedula">
+                              <i class="fas fa-id-card"></i>
+                            </div>
+                            <div class="flex-grow-1">
+                              <h6 class="mb-1 fw-bold">Documento de Identidad</h6>
+                              <small class="text-muted" id="name-cedula">Pendiente de carga...</small>
+                              <div class="mt-2" id="badges-cedula">
+                                <span class="badge bg-secondary">Pendiente</span>
+                              </div>
+                            </div>
+                            <div class="text-end">
+                              <button class="btn btn-sm btn-outline-secondary rounded-pill mb-1" onclick="omitirDocumento('cedula')"        title="Documento ya existe en BD">
+                                  <i class="fas fa-check-double"></i> Ya en BD
+                              </button>
+                              <button class="btn btn-sm btn-primary rounded-pill mb-1" onclick="handleSmartUpload('cedula')">
+                                <i class="fas fa-tasks me-1"></i>Gestionar
+                              </button>
+                              <button class="btn btn-sm btn-outline-dark rounded-pill mb-1 d-none" id="btn-view-cedula" onclick="verDocumento('cedula')">
+                                <i class="fas fa-eye"></i>
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div class="document-card" id="card-comprobante">
+                          <input type="file" id="input-comprobante" hidden accept=".pdf,.jpg,.png" onchange="procesarArchivo('comprobante', this)">
+                          <div class="d-flex align-items-center gap-3">
+                            <div class="document-icon" id="icon-comprobante">
+                              <i class="fas fa-file-invoice-dollar"></i>
+                            </div>
+                            <div class="flex-grow-1">
+                              <h6 class="mb-1 fw-bold">Comprobante de Pago</h6>
+                              <small class="text-muted" id="name-comprobante">Pendiente de carga...</small>
+                              <div class="mt-2" id="badges-comprobante">
+                                <span class="badge bg-secondary">Pendiente</span>
+                              </div>
+                            </div>
+                            <div class="text-end">
+                              <button class="btn btn-sm btn-primary rounded-pill mb-1" onclick="handleSmartUpload('comprobante')">
+                                <i class="fas fa-tasks me-1"></i>Gestionar
+                              </button>
+                              <button class="btn btn-sm btn-outline-dark rounded-pill mb-1 d-none" id="btn-view-comprobante" onclick="verDocumento('comprobante')">
+                                <i class="fas fa-eye"></i>
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div class="document-card" id="card-sarlaft">
+                          <input type="file" id="input-sarlaft" hidden accept=".pdf,.jpg,.png" onchange="procesarArchivo('sarlaft', this)">
+                          <div class="d-flex align-items-center gap-3">
+                            <div class="document-icon" id="icon-sarlaft">
+                              <i class="fas fa-file-signature"></i>
+                            </div>
+                            <div class="flex-grow-1">
+                              <h6 class="mb-1 fw-bold">SARLAFT</h6>
+                              <small class="text-muted" id="name-sarlaft">Pendiente de carga...</small>
+                              <div class="mt-2" id="badges-sarlaft">
+                                <span class="badge bg-secondary">Pendiente</span>
+                              </div>
+                            </div>
+                            <div class="text-end">
+                              <button class="btn btn-sm btn-primary rounded-pill mb-1" onclick="handleSmartUpload('sarlaft')">
+                                <i class="fas fa-tasks me-1"></i>Gestionar
+                              </button>
+                              <button class="btn btn-sm btn-outline-dark rounded-pill mb-1 d-none" id="btn-view-sarlaft" onclick="verDocumento('sarlaft')">
+                                <i class="fas fa-eye"></i>
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div class="document-card" id="card-contrato">
+                          <input type="file" id="input-contrato" hidden accept=".pdf,.jpg,.png" onchange="procesarArchivo('contrato', this)">
+                          <div class="d-flex align-items-center gap-3">
+                            <div class="document-icon" id="icon-contrato">
+                              <i class="fas fa-file-contract"></i>
+                            </div>
+                            <div class="flex-grow-1">
+                              <h6 class="mb-1 fw-bold">Formulario Renovacion</h6>
+                              <small class="text-muted" id="name-contrato">Pendiente de carga...</small>
+                              <div class="mt-2" id="badges-contrato">
+                                <span class="badge bg-secondary">Pendiente</span>
+                              </div>
+                            </div>
+                            <div class="text-end">
+                              <button class="btn btn-sm btn-primary rounded-pill mb-1" onclick="handleSmartUpload('contrato')">
+                                <i class="fas fa-tasks me-1"></i>Gestionar
+                              </button>
+                              <button class="btn btn-sm btn-outline-dark rounded-pill mb-1 d-none" id="btn-view-contrato" onclick="verDocumento('contrato')">
+                                <i class="fas fa-eye"></i>
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+
+                      </div>
+
+                    </div>
+                  </div>
+
+                  <!-- Columna Derecha: Datos Extraídos -->
+                  <div class="col-lg-5">
+                    <div class="scroll-area">
+
+                      <div class="ai-verification-panel mb-3">
+                        <h5 class="mb-3" style="font-weight: 700; color: var(--text-primary);">
+                          <i class="fas fa-user-circle me-2"></i>Datos del Asegurado y Lead
+                        </h5>
+
+                        <div class="d-flex align-items-center gap-3 mb-3 pb-3 border-bottom">
+                          <div
+                            style="width: 60px; height: 60px; border-radius: 50%; background: var(--primary-gradient); display: flex; align-items: center; justify-content: center; color: white; font-size: 1.5rem; font-weight: 700;">
+                            <span id="initials_asegurado">JG</span>
+                          </div>
+                          <div>
+                            <h5 class="mb-0" id="nombre_asegurado" style="font-weight: 700;">Cargando...</h5>
+                            <p class="mb-0 text-muted" style="font-size: 0.9rem;">
+                              <strong id="tipo_documento">--</strong> <span id="numero_documento">--</span>
+                            </p>
+                          </div>
+                        </div>
+
+                        <h6 class="mb-2 fw-bold text-muted small">CONTACTO Y UBICACIÓN</h6>
+                        <div class="data-extraction-grid mb-3">
+                          <div class="data-item">
+                            <div class="data-label"><i class="fas fa-envelope me-1"></i>Correo Electrónico</div>
+                            <div class="data-value text-truncate" id="correo_electronico">--</div>
+                          </div>
+                          <div class="data-item">
+                            <div class="data-label"><i class="fas fa-mobile-alt me-1"></i>Celular / Teléfono</div>
+                            <div class="data-value" id="celular_telefono">--</div>
+                          </div>
+                          <div class="data-item" style="grid-column: span 2;">
+                            <div class="data-label"><i class="fas fa-map-marker-alt me-1"></i>Dirección del Riesgo</div>
+                            <div class="data-value" id="direccion_riesgo" style="font-size: 0.9rem;">--</div>
+                          </div>
+                        </div>
+
+                        <h6 class="mb-2 fw-bold text-muted small">INFORMACIÓN DE GESTIÓN</h6>
+                        <div class="data-extraction-grid">
+                          <div class="data-item">
+                            <div class="data-label"><i class="fas fa-layer-group me-1"></i>Segmento</div>
+                            <div class="data-value" id="segmento">--</div>
+                          </div>
+                          <div class="data-item">
+                            <div class="data-label"><i class="fas fa-home me-1"></i>Destino Inmueble</div>
+                            <div class="data-value" id="destino_inmueble">--</div>
+                          </div>
+                          <div class="data-item">
+                            <div class="data-label"><i class="fas fa-file-invoice me-1"></i>No. Solicitud</div>
+                            <div class="data-value" id="numero_solicitud">--</div>
+                          </div>
+                          <div class="data-item">
+                            <div class="data-label"><i class="fas fa-user-tag me-1"></i>Poliza Selecciona</div>
+                            <div class="data-value" id="polselect">--</div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div class="ai-verification-panel mb-3">
+                        <h5 class="mb-3 text-danger" style="font-weight: 700;">
+                          <i class="fas fa-clock me-2"></i>Póliza Actual
+                          <span class="text-muted small fw-normal">(Vence: <span id="old_vencimiento">--</span>)</span>
+                        </h5>
+
+                        <h6 class="mb-2 fw-bold text-muted small">DATOS CONTRACTUALES</h6>
+                        <div class="data-extraction-grid mb-3">
+                          <div class="data-item">
+                            <div class="data-label">No. Póliza</div>
+                            <div class="data-value" id="old_numero_poliza">--</div>
+                          </div>
+                          <div class="data-item">
+                            <div class="data-label">Vigencia (Meses)</div>
+                            <div class="data-value" id="old_meses_vigencia">--</div>
+                          </div>
+                          <div class="data-item">
+                            <div class="data-label">Inicio Vigencia</div>
+                            <div class="data-value" id="old_inicio_vigencia">--</div>
+                          </div>
+                          <div class="data-item">
+                            <div class="data-label">Vencimiento</div>
+                            <div class="data-value" id="old_vencimiento_completo">--</div>
+                          </div>
+                          <div class="data-item">
+                            <div class="data-label">Canon Arrendamiento</div>
+                            <div class="data-value" id="old_canon_arrendamiento">--</div>
+                          </div>
+                          <div class="data-item">
+                            <div class="data-label">Administración</div>
+                            <div class="data-value" id="old_administracion">--</div>
+                          </div>
+                        </div>
+
+                        <h6 class="mb-2 fw-bold text-muted small">COBERTURAS Y ESTADO</h6>
+                        <div class="data-extraction-grid mb-3">
+                          <div class="data-item">
+                            <div class="data-label">Valor Asegurado DyF</div>
+                            <div class="data-value" id="old_valor_aseg_DyF">--</div>
+                          </div>
+                          <div class="data-item">
+                            <div class="data-label">Valor Asegurado Serv. Públicos</div>
+                            <div class="data-value" id="old_valor_aseg_serv_pub">--</div>
+                          </div>
+                          <div class="data-item">
+                            <div class="data-label">Mismo Inquilino</div>
+                            <div class="data-value" id="old_mismo_inquilino">--</div>
+                          </div>
+                          <div class="data-item">
+                            <div class="data-label">Estado Inmueble</div>
+                            <div class="data-value" id="old_estado_inmueble">--</div>
+                          </div>
+                          <div class="data-item">
+                            <div class="data-label">Paz y Salvo</div>
+                            <div class="data-value" id="old_estado_pagos">--</div>
+                          </div>
+                        </div>
+
+                        <h6 class="mb-2 fw-bold text-muted small">INQUILINO Y DEUDOR</h6>
+                        <div class="data-extraction-grid mb-3">
+                          <div class="data-item">
+                            <div class="data-label">Nombre Inquilino</div>
+                            <div class="data-value" id="inquilino">--</div>
+                          </div>
+                          <div class="data-item">
+                            <div class="data-label">Documento Inquilino</div>
+                            <div class="data-value" id="idInqulino">--</div>
+                          </div>
+                          <div class="data-item">
+                            <div class="data-label">Deudor Solidario</div>
+                            <div class="data-value" id="codeudor">--</div>
+                          </div>
+                          <div class="data-item">
+                            <div class="data-label">Documento Deudor Solidario</div>
+                            <div class="data-value" id="idDeudor">--</div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div class="ai-verification-panel mb-3" style="border-left: 4px solid var(--primary-gradient);">
+                        <h5 class="mb-3 text-primary" style="font-weight: 700;">
+                          <i class="fas fa-calculator me-2"></i>Cotizador de Renovación
+                        </h5>
+
+                        <div id="formularioNuevaPoliza" class="mt-2">
+                          <div class="card border-0 shadow-sm mb-4"
+                            style="background: linear-gradient(to right, #f8f9fa, #ffffff);">
+                            <div class="card-body p-3">
+                              <div class="row align-items-center g-3">
+                                <div class="col-md-12 mb-2">
+                                  <div class="d-flex align-items-center justify-content-between border-bottom pb-2">
+                                    <label class="small text-muted fw-bold text-uppercase ls-1">Vencimiento Actual</label>
+                                    <span class="fs-6 fw-bold text-dark" id="displayVencimientoActual">--</span>
+                                  </div>
+                                </div>
+
+                                <div class="col-6">
+                                  <label class="small text-muted fw-bold">Inicio Nueva Vigencia *</label>
+                                  <input type="date" class="form-control form-control-sm border-primary"
+                               id="fechaInicioVigencia" onchange="validarYCalcularFechas()">
+                                </div>
+                                <div class="col-6">
+                                  <label class="small text-muted fw-bold">Fin Vigencia (Fija)</label>
+                                  <input type="date" class="form-control form-control-sm border-secondary fw-bold"
+                                    id="fechaFinVigencia"
+                                    onchange="validarYCalcularFechas()">
+                                </div>
+
+                                <div class="col-12">
+                                  <div class="d-flex justify-content-between mt-2 small">
+                                    <span class="text-muted">Duración:</span>
+                                    <div>
+                                      <span class="badge bg-info text-dark" id="displayMeses">12 Meses</span>
+                                      <span class="badge bg-light text-secondary border" id="displayDias">365 Días</span>
+                                      <input type="hidden" id="new_meses_vigencia" value="12">
+                                    </div>
+                                  </div>
+                                  <div id="alertaVigencia" class="text-danger fw-bold small mt-1 d-none">
+                                    <i class="fas fa-ban me-1"></i> Mínimo 10 meses requeridos.
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div class="d-flex align-items-center justify-content-between mb-3 px-1">
+                            <label class="small text-muted fw-bold mb-0">Ajuste IPC (%)</label>
+                            <div class="input-group input-group-sm w-50">
+                              <button class="btn btn-outline-secondary" type="button" onclick="ajustarIPC(-0.1)">-</button>
+                              <input
+                            type="number"
+                            class="form-control fw-bold text-center text-primary"
+                            id="input_IPC"
+                            value="0"
+                            step="0.1"
+                            style="max-width: 80px;"
+                            oninput="recalcularCanonPorIPC()"
+                            onchange="recalcularCanonPorIPC()">
+                              <button class="btn btn-outline-secondary" type="button" onclick="ajustarIPC(0.1)">+</button>
+                            </div>
+                          </div>
+
+                          <div class="row g-3 mb-4">
+                            <div class="col-12">
+                              <div class="card h-100 border-0 shadow-sm"
+                                style="border-top: 4px solid #003366 !important;">
+                                <div class="card-body p-2">
+                                  <div class="d-flex justify-content-between mb-2">
+                                    <h6 class="fw-bold text-dark"><i class="fas fa-home me-2 text-primary"></i>Valores
+                                      Base</h6>
+                                    <span class="badge bg-primary bg-opacity-10 text-primary" id="badgeIPC">Base + IPC</span>
+                                  </div>
+
+                                  <div class="mb-2">
+                                    <label class="small text-muted fw-bold">Nuevo Canon</label>
+                                    <div class="input-group input-group-sm">
+                                      <span class="input-group-text bg-white border-end-0">$</span>
+                                      <input type="text" class="form-control border-start-0 fw-bold text-primary" id="db_NUEVO_CANON_SOLO" onkeyup="formatCurrencyInput(this); calcularCotizacion();">
+                                    </div>
+                                  </div>
+
+                                  <div class="mb-3">
+                                    <label class="small text-muted fw-bold">Nueva Administración</label>
+                                    <div class="input-group input-group-sm">
+                                      <span class="input-group-text bg-white border-end-0">$</span>
+                                      <input type="text" class="form-control border-start-0 fw-bold text-secondary"
+                                      id="db_NUEVA_ADMINISTRACION"
+                                      onkeyup="formatCurrencyInput(this); calcularCotizacion();">
+                                    </div>
+                                  </div>
+
+                                  <div class="mb-3" id="container_iva_comercial" style="display: none;">
+                                    <label class="small text-muted fw-bold text-danger">IVA Comercial (19%)</label>
+                                    <div class="input-group input-group-sm">
+                                      <span class="input-group-text bg-white border-end-0 text-danger">$</span>
+                                      <input type="text" class="form-control border-start-0 fw-bold text-danger"
+                                          id="db_IVACOMERCIAL"
+                                          placeholder="$0"
+                                          onkeyup="formatCurrencyInput(this); calcularCotizacion();">
+                                    </div>
+                                    <small class="text-muted" style="font-size: 0.7rem;">* Solo para inmuebles comerciales</small>
+                                  </div>
+
+                                  <div class="bg-light p-2 rounded small">
+                                    <div class="d-flex justify-content-between">
+                                      <span>Base Asegurable:</span>
+                                      <strong id="card_base_total">$0</strong>
+                                    </div>
+                                    <hr class="my-1">
+                                    <div class="d-flex justify-content-between">
+                                      <span>Prima Neta (3.5%):</span>
+                                      <span id="card_prima_canon">$0</span>
+                                    </div>
+                                    <div class="d-flex justify-content-between text-muted">
+                                      <span>IVA (19%):</span>
+                                      <span id="card_iva_canon">$0</span>
+                                    </div>
+                                  </div>
+                                  <div class="mt-2 text-center">
+                                    <small class="text-uppercase text-muted fw-bold" style="font-size: 0.7rem;">Prima por pagar</small>
+                                    <h5 class="fw-bold text-primary mb-0" id="card_total_canon">$0</h5>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+
+                            <div class="col-12">
+                              <div class="card h-100 border-0 shadow-sm"
+                                style="border-top: 4px solid #003366 !important;">
+                                <div class="card-body p-2">
+                                  <div class="d-flex justify-content-between mb-3">
+                                    <h6 class="fw-bold text-dark"><i class="fas fa-bolt me-2 text-info"></i>Servicios
+                                      Públicos</h6>
+                                    <select class="form-select form-select-sm w-auto py-0" id="tipoServicio" onchange="calcularCotizacion()" style="height: 24px; font-size: 0.7rem;">
+                                <option value="VIVIENDA">Vivienda</option>
+                                <option value="COMERCIO">Comercio</option>
+                            </select>
+                                  </div>
+                                  <div class="mb-3">
+                                    <label class="small text-muted fw-bold">Valor Asegurado</label>
+                                    <div class="input-group input-group-sm">
+                                      <span class="input-group-text bg-white border-end-0">$</span>
+                                      <input type="text" class="form-control border-start-0 fw-bold" id="nuevosServicios" onkeyup="formatCurrencyInput(this); calcularCotizacion();">
+                                    </div>
+                                  </div>
+                                  <div class="bg-light p-2 rounded small">
+                                    <div class="d-flex justify-content-between">
+                                      <span>Tasa Aplicada:</span>
+                                      <strong id="card_tasa_serv">-</strong>
+                                    </div>
+                                    <hr class="my-1">
+                                    <div class="d-flex justify-content-between">
+                                      <span>Prima Neta:</span>
+                                      <span id="card_prima_serv">$0</span>
+                                    </div>
+                                    <div class="d-flex justify-content-between text-muted">
+                                      <span>IVA (19%):</span>
+                                      <span id="card_iva_serv">$0</span>
+                                    </div>
+                                  </div>
+                                  <div class="mt-3 text-center">
+                                    <small class="text-uppercase text-muted fw-bold" style="font-size: 0.7rem;">Total Servicios</small>
+                                    <h5 class="fw-bold text-info mb-0" id="card_total_serv">$0</h5>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+
+                            <div class="col-12">
+                              <div class="card h-100 border-0 shadow-sm"
+                                style="border-top: 4px solid #E60000 !important;">
+                                <div class="card-body p-2">
+                                  <div class="d-flex justify-content-between mb-3">
+                                    <h6 class="fw-bold text-dark"><i class="fas fa-tools me-2 text-warning"></i>Daños y
+                                      Faltantes</h6>
+                                    <span class="badge bg-warning text-dark bg-opacity-25">Opcional</span>
+                                  </div>
+                                  <div class="mb-3">
+                                    <label class="small text-muted fw-bold">Valor Asegurado</label>
+                                    <div class="input-group input-group-sm">
+                                      <span class="input-group-text bg-white border-end-0">$</span>
+                                      <input type="text" class="form-control border-start-0 fw-bold" id="nuevosDyF" onkeyup="formatCurrencyInput(this); calcularCotizacion();">
+                                    </div>
+                                  </div>
+                                  <div class="bg-light p-2 rounded small">
+                                    <div class="d-flex justify-content-between">
+                                      <span>Tasa Aplicada:</span>
+                                      <strong>5.00%</strong>
+                                    </div>
+                                    <hr class="my-1">
+                                    <div class="d-flex justify-content-between">
+                                      <span>Prima Neta:</span>
+                                      <span id="card_prima_dyf">$0</span>
+                                    </div>
+                                    <div class="d-flex justify-content-between text-muted">
+                                      <span>IVA (19%):</span>
+                                      <span id="card_iva_dyf">$0</span>
+                                    </div>
+                                  </div>
+                                  <div class="mt-3 text-center">
+                                    <small class="text-uppercase text-muted fw-bold" style="font-size: 0.7rem;">Total DyF</small>
+                                    <h5 class="fw-bold text-warning mb-0" id="card_total_dyf">$0</h5>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div class="card bg-primary text-white border-0 shadow-lg">
+                            <div class="card-body p-3">
+                              <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                  <h5 class="mb-0 fw-bold"><i class="fas fa-check-circle me-2"></i>Total Póliza</h5>
+                                  <small class="opacity-75">Incluye cánones, administración y servicios</small>
+                                </div>
+                                <div class="text-end">
+                                  <h2 class="mb-0 fw-bold" id="cotizacionTotalFooter">$0</h2>
+                                  <input type="hidden" id="valor_total_cotizacion">
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div class="ai-verification-panel mb-3" id="card_proceso_especial"
+                        style="display: none; border-left: 4px solid var(--warning-gradient);">
+                        <h5 class="mb-3" style="font-weight: 700; color: var(--text-primary);">
+                          <i class="fas fa-exclamation-triangle me-2"></i>Proceso Especial
+                        </h5>
+                        <div class="data-extraction-grid">
+                          <div class="data-item" style="grid-column: span 2;">
+                            <div class="data-label">Proceso Especial</div>
+                            <div class="data-value" id="proceso_especial">--</div>
+                          </div>
+                          <div class="data-item" style="grid-column: span 2;">
+                            <div class="data-label">Observaciones Proceso Especial</div>
+                            <div class="data-value" id="observaciones_proceso_especial">--</div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div class="ai-verification-panel mb-3">
+                        <h5 class="mb-3" style="font-weight: 700; color: var(--text-primary);">
+                          <i class="fas fa-shield-alt me-2"></i>Verificación SARLAFT
+                        </h5>
+
+                        <div class="data-extraction-grid">
+                          <div class="data-item">
+                            <div class="data-label">Estado SARLAFT</div>
+                            <div class="data-value" id="estado_sarlaft">--</div>
+                          </div>
+                          <div class="data-item">
+                            <div class="data-label">Fecha última Actualización</div>
+                            <div class="data-value" id="fecha_ultima_sarlaft">--</div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div class="ai-verification-panel mb-3">
+                        <h5 class="mb-3" style="font-weight: 700; color: var(--text-primary);">
+                          <i class="fas fa-clipboard-list me-2"></i>Observaciones de la Gestión
+                        </h5>
+                        <div id="observaciones_container" style="max-height: 200px; overflow-y: auto;">
+                          <div class="text-center text-muted"><small>Cargando historial de observaciones...</small>
+                          </div>
+                        </div>
+                      </div>
+
+                    </div>
+                  </div>
+
+                </div>
+              </div>
+            </div>
+
+            <!-- Footer con Acciones -->
+            <div class="modal-footer border-0 p-4" style="background: white;">
+              <div class="container-fluid">
+                <div class="row g-3">
+                  <div class="col-12">
+                    <div class="alert alert-info mb-3" role="alert"
+                      style="border-radius: 12px; border-left: 4px solid #667eea;">
+                      <div class="d-flex align-items-center">
+                        <i class="fas fa-info-circle me-2" style="font-size: 1.5rem;"></i>
+                        <div>
+                          <strong>Decisión del Analista</strong>
+                          <p class="mb-0 mt-1" style="font-size: 0.9rem;">
+                            Revisa los documentos verificados y los datos extraídos. Aprueba el lead si todo está
+                            correcto o solicita correcciones.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="col-md-12">
+                    <label class="form-label fw-bold">Notas del Analista (Opcional)</label>
+                    <textarea class="form-control" id="notasAnalista" rows="3" placeholder="Agrega comentarios u observaciones adicionales sobre esta verificación..." style="position: relative; z-index: 1060;"></textarea>
+                  </div>
+
+                  <div class="col-md-12">
+                    <div class="d-flex gap-3 justify-content-end">
+                      <button type="button" class="btn btn-outline-secondary action-button" data-bs-dismiss="modal">
+                                    <i class="fas fa-times me-2"></i>Cancelar
+                                </button>
+
+                      <button type="button" class="action-button action-button-request-correction" onclick="requestCorrections()">
+                                    <i class="fas fa-edit me-2"></i>Solicitar Correcciones
+                                </button>
+
+                      <button type="button" class="action-button action-button-declinado" onclick="cancelado()">
+                                    <i class="fas fa-edit me-2"></i>Imposible Renovar
+                                </button>
+                      <button type="button" class="action-button" style="background: #ffc107; color: #000;" onclick="markAsReviewed()">
+        <i class="fas fa-clipboard-check me-2"></i>Caso Revisado
+    </button>
+                      <button type="button" class="action-button action-button-approve" onclick="approveLead()">
+                                    <i class="fas fa-check-circle me-2"></i>Renovar Poliza
+                                </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+      <!-- Parámetros correo renovación (US-01) — vista CRM -->
+      <div class="modal fade" id="modalParamCorreoRenovacion" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable">
+          <div class="modal-content" style="border-radius: 14px;">
+            <div class="modal-header"
+              style="background: linear-gradient(135deg, #003366 0%, #0055aa 100%); color: #fff;">
+              <h5 class="modal-title"><i class="bi bi-sliders me-2"></i>Correos por segmento — Renovaciones</h5>
+              <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+            </div>
+            <div class="modal-body">
+              <p class="text-muted small">Edite destinatarios parametrizados (clave fija). Los cambios se guardan en la
+                hoja <strong>Correo_Renovacion_Param</strong> del WareHouse (mismo archivo que Gestion).</p>
+              <div class="table-responsive">
+                <table class="table table-sm table-bordered align-middle" id="tableParamCorreoRenovacion">
+                  <thead class="table-light">
+                    <tr>
+                      <th>Clave</th>
+                      <th>Nombre</th>
+                      <th>Correo</th>
+                      <th>Especialidad</th>
+                    </tr>
+                  </thead>
+                  <tbody id="tbodyParamCorreoRenovacion"></tbody>
+                </table>
+              </div>
+            </div>
+            <div class="modal-footer">
+              <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cerrar</button>
+              <button type="button" class="btn btn-primary" onclick="guardarTablaParamCorreoRenovacion()">
+                <i class="bi bi-save me-1"></i>Guardar cambios
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Envío correo renovación: centrado en pantalla, scroll solo dentro del panel -->
+      <div id="renovacionCorreoOverlay" class="renovacion-correo-overlay" aria-hidden="true">
+        <div class="renovacion-correo-panel card shadow-lg border-0 d-flex flex-column">
+          <div class="card-header text-white d-flex justify-content-between align-items-center py-3 flex-shrink-0"
+            style="background: linear-gradient(135deg, #003366 0%, #0055aa 100%); border-radius: 0;">
+            <div>
+              <h5 class="mb-0 fw-bold" id="renovacionCorreoTitulo">Vista previa del correo</h5>
+              <small class="opacity-75">Elija destinatarios en copia y apruebe el envío manualmente</small>
+            </div>
+            <span class="badge bg-light text-dark" id="renovacionCorreoSegmentoBadge">—</span>
+          </div>
+          <div class="renovacion-correo-scroll p-3 p-md-4">
+            <div id="rowRenovacionCorreoMotivo" class="mb-3 d-none">
+              <label class="form-label fw-bold text-danger" for="renovacionCorreoMotivo">Motivo / observaciones <span class="text-muted fw-normal">(obligatorio)</span></label>
+              <textarea class="form-control" id="renovacionCorreoMotivo" rows="3"
+                placeholder="Describa el motivo de la devolución o por qué no procede la renovación..."></textarea>
+            </div>
+            <div id="renovacionCorreoAsignacionCorreccion" class="alert alert-info py-2 px-3 mb-3 d-none small border-0"
+              style="background: #e7f1ff;" role="status"></div>
+            <div class="row g-3 mb-3">
+              <div class="col-md-6">
+                <label class="form-label small fw-bold text-muted">Para</label>
+                <input type="text" class="form-control small" id="renovacionCorreoPara" style="min-height: 38px;" value="">
+              </div>
+              <div class="col-md-6">
+                <label class="form-label small fw-bold text-muted">Asunto</label>
+                <input type="text" class="form-control small" id="renovacionCorreoAsunto" style="min-height: 38px;" value="">
+              </div>
+            </div>
+            <div class="mb-3">
+              <label class="form-label small fw-bold mb-1">Copia (CC) — contactos de la póliza y reglas</label>
+              <p class="text-muted small mb-2">Marque o desmarque a quién recibe copia. Incluye correos detectados en la
+                fila (propietario, bróker, inmobiliaria, etc.) y los de reglas por segmento.</p>
+              <div id="renovacionCorreoCandidatosContainer" class="border rounded bg-white"></div>
+            </div>
+            <div class="row g-2 mb-3">
+              <div class="col-md-6">
+                <label class="form-label small" for="renovacionCorreoExtra1">Correo adicional 1 (CC)</label>
+                <input type="email" class="form-control form-control-sm" id="renovacionCorreoExtra1" placeholder="opcional@ejemplo.com">
+              </div>
+              <div class="col-md-6">
+                <label class="form-label small" for="renovacionCorreoExtra2">Correo adicional 2 (CC)</label>
+                <input type="email" class="form-control form-control-sm" id="renovacionCorreoExtra2" placeholder="opcional@ejemplo.com">
+              </div>
+            </div>
+            <div class="mb-3 pb-3 border-bottom">
+              <label class="form-label small fw-bold">Adjuntos al correo</label>
+              <p class="text-muted small mb-2 mb-md-1">Solo documentos que ya están en este flujo: tarjetas de gestión
+                documental (PC o Drive) y el listado Drive / historial del caso. No se suben archivos nuevos desde aquí.
+              </p>
+              <button type="button" class="btn btn-outline-secondary btn-sm" id="btnRenovacionCorreoAdjuntos">
+                <i class="bi bi-paperclip me-1"></i>Seleccionar documentos adjuntos
+              </button>
+              <div id="renovacionCorreoAdjuntosResumen" class="small mt-2 text-muted"></div>
+            </div>
+            <div class="d-flex flex-wrap gap-2 mb-3 align-items-center">
+              <button type="button" class="btn btn-outline-primary btn-sm" id="btnRenovacionCorreoRefreshPreview">
+                <i class="bi bi-arrow-clockwise me-1"></i>Actualizar vista previa
+              </button>
+              <button type="button" class="btn btn-outline-secondary btn-sm" id="btnRenovacionCorreoMarcarRegla">
+                <i class="bi bi-check2-square me-1"></i>Solo reglas de segmento
+              </button>
+              <small class="text-muted">Las notas del analista del modal principal se reflejan en el cuerpo del correo cuando aplica.</small>
+            </div>
+            <label class="form-label small fw-bold">Vista previa del mensaje</label>
+            <div class="border rounded bg-white" style="border-radius: 4px; overflow: visible;">
+              <iframe id="renovacionCorreoIframe" title="Vista previa correo" class="w-100"
+                style="min-height: 260px; border: 0; border-radius: 4px; display: block;">
+              </iframe>
+            </div>
+          </div>
+          <div
+            class="card-footer bg-white d-flex flex-wrap justify-content-between align-items-center gap-2 py-3 border-top flex-shrink-0">
+            <button type="button" class="btn btn-outline-secondary" id="btnRenovacionCorreoCerrar">
+              <i class="bi bi-x-lg me-1"></i>Cerrar
+            </button>
+            <div class="d-flex flex-wrap gap-2 ms-auto">
+              <button type="button" class="btn btn-outline-warning btn-sm" id="btnRenovacionCorreoValidar" title="Comprueba destinatarios, HTML y adjuntos en el servidor sin Gmail ni hoja">
+                <i class="bi bi-shield-check me-1"></i>Validar sin enviar
+              </button>
+              <button type="button" class="btn btn-success px-4" id="btnRenovacionCorreoEnviar">
+                <i class="bi bi-send-check me-1"></i>Aprobar envío y procesar gestión
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <footer class="footer">
+        <div class="container-fluid d-flex justify-content-between">
+          <nav class="pull-left">
+            ©2024<a> El Libertador</a>
+          </nav>
+          <div>
+            <img class="w-75" src="https://www.ellibertador.co/assets/img/logo.svg">
+          </div>
+        </div>
+      </footer>
+    </div>
+    <!-- End Custom template -->
+  </div>
+  <div id="overlay_Modal" style="display:none;">
+    <div class="container h-100">
+      <div id="Container_Scroll_Modal" class="page-inner mt-3 pill-scrollbar fade-in"
+        style="background-color: #f5f5f5;border-radius: 10px;height: 95%;overflow-y: auto;">
+        <div class="modal-header px-md-5 py-md-4 mt-2 mb-3 shadow-sm border-0">
+          <h3 class="h5 fw-extrabold mb-0">Detalle General</h3>
+          <button id="ButtonCerrarModal" type="button" class="btn-close me-1 p-2" data-bs-dismiss="modal" aria-label="Close">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-6 h-6">
+            <path fill-rule="evenodd" d="M5.47 5.47a.75.75 0 011.06 0L12 10.94l5.47-5.47a.75.75 0 111.06 1.06L13.06 12l5.47 5.47a.75.75 0 11-1.06 1.06L12 13.06l-5.47 5.47a.75.75 0 01-1.06-1.06L10.94 12 5.47 6.53a.75.75 0 010-1.06z" clip-rule="evenodd" />
+            </svg>
+          </button>
+        </div>
+        <div class="row justify-content-center">
+          <div class="col-sm-6 col-lg-3">
+            <div class="card p-3">
+              <div class="d-flex align-items-center">
+                <span class="stamp stamp-md bg-danger me-3"><i class="bi bi-person-rolodex fs-4"></i></span>
+                <div>
+                  <h5 class="mb-1">
+                    <b><a id="Ref_Solicitud_Cliente_Modal" name="Ref_Solicitud_Cliente_Modal" ></a></b>
+                  </h5>
+                  <small class="text-muted">Id Solicitud</small>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="col-sm-6 col-lg-3">
+            <div class="card p-3">
+              <div class="d-flex align-items-center">
+                <span class="stamp stamp-md bg-primary me-3"><i class="bi bi-stopwatch fs-4"></i></span>
+                <div>
+                  <h5 class="mb-1">
+                    <b><a id="Fecha_Solicitud_Cliente_Modal" name="Fecha_Solicitud_Cliente_Modal"></a></b>
+                  </h5>
+                  <small class="text-muted">Fecha de Ingreso</small>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="col-sm-6 col-lg-3">
+            <div class="card p-3">
+              <div class="d-flex align-items-center">
+                <span class="stamp stamp-md bg-secondary me-3"><i class="bi bi-buildings fs-4"></i></span>
+                <div>
+                  <h5 class="mb-1">
+                    <b><a id="Destino_Solicitud_Cliente_Modal" name="Destino_Solicitud_Cliente_Modal"></a></b>
+                  </h5>
+                  <small class="text-muted">Destino del Inmueble</small>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="col-sm-6 col-lg-3">
+            <div class="card p-3">
+              <div class="d-flex align-items-center">
+                <span class="stamp stamp-md bg-danger me-3"><i class="bi bi-image-alt fs-4"></i></span>
+                <div>
+                  <h5 class="mb-1">
+                    <b><a id="Ciudad_Solicitud_Cliente_Modal" name="Ciudad_Solicitud_Cliente_Modal"></a></b>
+                  </h5>
+                  <small class="text-muted">Ciudad del Inmueble</small>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="col-sm-6 col-lg-3">
+            <div class="card p-3">
+              <div class="d-flex align-items-center">
+                <span class="stamp stamp-md bg-warning me-3"><i class="bi bi-telephone-outbound fs-4"></i></span>
+                <div>
+                  <h5 class="mb-1">
+                    <b><a id="Contacto_Solicitud_Cliente_Modal" name="Contacto_Solicitud_Cliente_Modal"></a></b>
+                  </h5>
+                  <small class="text-muted">Número de Contacto</small>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="col-sm-6 col-lg-3">
+            <div class="card p-3">
+              <div class="d-flex align-items-center">
+                <span class="stamp stamp-md bg-success me-3"><i class="bi bi-bank fs-4"></i></span>
+                <div>
+                  <h5 class="mb-1">
+                    <b><a id="ValorTotal_Solicitud_Cliente_Modal" name="ValorTotal_Solicitud_Cliente_Modal"></a></b>
+                  </h5>
+                  <small class="text-muted">Valor Total Aseguramiento</small>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="col-sm-6 col-lg-3">
+            <div class="card p-3">
+              <div class="d-flex align-items-center">
+                <span class="stamp stamp-md bg-success me-3"><i class="bi bi-coin fs-4"></i></span>
+                <div>
+                  <h5 class="mb-1">
+                    <b><a id="ValorPoliza_Solicitud_Cliente_Modal" name="ValorPoliza_Solicitud_Cliente_Modal"></a></b>
+                  </h5>
+                  <small class="text-muted">Valor Póliza Mensual</small>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="col-sm-6 col-lg-3">
+            <div class="card p-3">
+              <div class="d-flex align-items-center">
+                <span class="stamp stamp-md bg-primary me-3"><i class="bi bi-houses fs-4"></i></span>
+                <div>
+                  <h5 class="mb-1">
+                    <b><a id="Num_Solicitud_Estudio_Modal" name="Num_Solicitud_Estudio_Modal"></a></b>
+                  </h5>
+                  <small class="text-muted">Nro Solicitud Estudio</small>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="row">
+          <div id="Container_VisualINFO">
+            <div class="row justify-content-center">
+              <div class="col-md-12">
+                <div class="card">
+                  <div class="card-header">
+                    <div class="card-head-row">
+                      <div class="card-title">Detalle Información Lead</div>
+                      <input type="text" id="VecesContactadoLead" name="VecesContactadoLead" hidden>
+                    </div>
+                  </div>
+                  <div class="card-body">
+                    <div class="row justify-content-center">
+                      <div class="col-md-6 col-lg-4  pb-3">
+                        <div class="d-flex align-items-center">
+                          <div class="icon-circle me-3">
+                            <i class="bi bi-person"></i>
+                          </div>
+                          <div class="form-floating form-floating-custom flex-grow-1">
+                            <input type="text" class="form-control" id="Name_Cliente_Modal" name="Name_Cliente_Modal"/>
+                            <label for="Name_Cliente_Modal">Nombre del Cliente</label>
+                          </div>
+                        </div>
+                      </div>
+                      <div class="col-md-6 col-lg-3  pb-3">
+                        <div class="d-flex align-items-center">
+                          <div class="icon-circle me-3">
+                            <i class="bi bi-person-bounding-box"></i>
+                          </div>
+                          <div class="form-floating form-floating-custom flex-grow-1">
+                            <input type="text" class="form-control" id="Cedula_Modal" name="Cedula_Modal"/>
+                            <label for="Cedula_Modal">Número de Identificación</label>
+                          </div>
+                        </div>
+                      </div>
+                      <div class="col-md-6 col-lg-3  pb-3">
+                        <div class="d-flex align-items-center">
+                          <div class="icon-circle me-3">
+                            <i class="bi bi-people-fill"></i>
+                          </div>
+                          <div class="form-floating form-floating-custom flex-grow-1">
+                            <input type="text" class="form-control" id="Tomador_Modal" name="Tomador_Modal"/>
+                            <label for="Tomador_Modal">Tomador Póliza</label>
+                          </div>
+                        </div>
+                      </div>
+                      <div class="col-md-6 col-lg-2  pb-3">
+                        <div class="d-flex align-items-center">
+                          <div class="icon-circle me-3">
+                            <i class="bi bi-building-check"></i>
+                          </div>
+                          <div class="form-floating form-floating-custom flex-grow-1">
+                            <select class="form-select" id="Funcionario_Modal" name="Funcionario_Modal">
+                              <option value="Si">Si</option>
+                              <option value="No">No</option>
+                            </select>
+                            <label for="Funcionario_Modal">F. Grupo Bolivar</label>
+                          </div>
+                        </div>
+                      </div>
+                      <div class="col-md-6 col-lg-4 pb-3">
+                        <div class="d-flex align-items-center">
+                          <div class="icon-circle me-3">
+                            <i class="bi bi-envelope-at"></i>
+                          </div>
+                          <div class="form-floating form-floating-custom flex-grow-1">
+                            <input type="text" class="form-control" id="Correo_Modal" name="Correo_Modal"/>
+                            <label for="Correo_Modal">Correo Electrónico</label>
+                          </div>
+                        </div>
+                      </div>
+                      <div class="col-md-6 col-lg-6 pb-3">
+                        <div class="d-flex align-items-center">
+                          <div class="icon-circle me-3">
+                            <i class="bi bi-map"></i>
+                          </div>
+                          <div class="form-floating form-floating-custom flex-grow-1">
+                            <input type="text" class="form-control" id="Direccion_Modal" name="Direccion_Modal"/>
+                            <label for="Direccion_Modal">Dirección del Inmueble</label>
+                          </div>
+                        </div>
+                      </div>
+                      <div class="col-md-6 col-lg-2  pb-3">
+                        <div class="d-flex align-items-center">
+                          <div class="icon-circle me-3">
+                            <i class="bi bi-calendar-event"></i>
+                          </div>
+                          <div class="form-floating form-floating-custom flex-grow-1">
+                            <input type="text" class="form-control" id="Fecha_Inicio_Modal" name="Fecha_Inicio_Modal"/>
+                            <label for="Fecha_Inicio_Modal">Fecha Inicio Póliza</label>
+                          </div>
+                        </div>
+                      </div>
+                      <div class="col-md-6 col-lg-3  pb-3">
+                        <div class="d-flex align-items-center">
+                          <div class="icon-circle me-3">
+                            <i class="bi bi-currency-dollar"></i>
+                          </div>
+                          <div class="form-floating form-floating-custom flex-grow-1">
+                            <input type="text" class="form-control" id="ValorCanon_Validation" name="ValorCanon_Validation" hidden>
+                            <input type="text" class="form-control" id="ValorCanon_Inmueble" name="ValorCanon_Inmueble" oninput="formatNumberInput(this)" onkeypress="validateNumericInput(event)"/>
+                            <label for="ValorCanon_Inmueble">Canón Arrendamiento</label>
+                          </div>
+                        </div>
+                      </div>
+                      <div class="col-md-6 col-lg-3  pb-3">
+                        <div class="d-flex align-items-center">
+                          <div class="icon-circle me-3">
+                            <i class="bi bi-currency-dollar"></i>
+                          </div>
+                          <div class="form-floating form-floating-custom flex-grow-1">
+                            <input type="text" class="form-control" id="ValorAdmon_Validation" name="ValorAdmon_Validation" hidden>
+                            <input type="text" class="form-control" id="ValorAdmon_Inmueble" name="ValorAdmon_Inmueble" oninput="formatNumberInput(this)" onkeypress="validateNumericInput(event)"/>
+                            <label for="ValorAdmon_Inmueble">Valor Admon</label>
+                          </div>
+                        </div>
+                      </div>
+                      <div class="col-md-6 col-lg-3  pb-3">
+                        <div class="d-flex align-items-center">
+                          <div class="icon-circle me-3">
+                            <i class="bi bi-currency-dollar"></i>
+                          </div>
+                          <div class="form-floating form-floating-custom flex-grow-1">
+                            <input type="text" class="form-control" id="ValorTotal_Inmueble" name="ValorTotal_Inmueble" oninput="formatNumberInput(this)" onkeypress="validateNumericInput(event)" disabled/>
+                            <label for="ValorAdmon_Inmueble">Total Monto Mensual</label>
+                          </div>
+                        </div>
+                      </div>
+                      <div class="col-md-6 col-lg-3  pb-3">
+                        <div class="d-flex align-items-center">
+                          <div class="icon-circle me-3">
+                            <i class="bi bi-calendar-event"></i>
+                          </div>
+                          <div class="form-floating form-floating-custom flex-grow-1">
+                            <select class="form-select" id="Vigencia_Modal" name="Vigencia_Modal">
+                              <option value="6 meses">6 meses</option>
+                              <option value="7 meses">7 meses</option>
+                              <option value="8 meses">8 meses</option>
+                              <option value="9 meses">9 meses</option>
+                              <option value="10 meses">10 meses</option>
+                              <option value="11 meses">11 meses</option>
+                              <option value="12 meses">12 meses</option>
+                            </select>
+                            <label for="Vigencia_Modal">Vigencia Póliza</label>
+                          </div>
+                        </div>
+                      </div>
+                      <div class="col-md-6 col-lg-3  pb-3">
+                        <div class="d-flex align-items-center">
+                          <div class="icon-circle me-3">
+                            <i class="bi bi-file-text"></i>
+                          </div>
+                          <div class="form-floating form-floating-custom flex-grow-1">
+                            <input type="text" class="form-control" id="ValorServicios_Modal" name="ValorServicios_Modal" value="35 meses"/>
+                            <label for="ValorServicios_Modal">Cobertura Servicios</label>
+                          </div>
+                        </div>
+                      </div>
+                      <div class="col-md-6 col-lg-3  pb-3">
+                        <div class="d-flex align-items-center">
+                          <div class="icon-circle me-3">
+                            <i class="bi bi-file-text"></i>
+                          </div>
+                          <div class="form-floating form-floating-custom flex-grow-1">
+                            <input type="text" class="form-control" id="ValorDaños_Modal" name="ValorDaños_Modal" value="35 meses"/>
+                            <label for="ValorDaños_Modal">Cobertura Daños</label>
+                          </div>
+                        </div>
+                      </div>
+                      <div class="col-md-6 col-lg-3  pb-3">
+                        <div class="d-flex align-items-center">
+                          <div class="icon-circle me-3">
+                            <i class="bi bi-backpack4"></i>
+                          </div>
+                          <div class="form-floating form-floating-custom flex-grow-1">
+                            <input type="text" class="form-control" id="ValorPoliza_Servicios" name="ValorPoliza_Servicios" oninput="formatNumberInput(this)" onkeypress="validateNumericInput(event)"/>
+                            <label for="ValorPoliza_Servicios">Valor Póliza Servicios (mes)</label>
+                          </div>
+                        </div>
+                      </div>
+                      <div class="col-md-6 col-lg-3  pb-3">
+                        <div class="d-flex align-items-center">
+                          <div class="icon-circle me-3">
+                            <i class="bi bi-backpack4"></i>
+                          </div>
+                          <div class="form-floating form-floating-custom flex-grow-1">
+                            <input type="text" class="form-control" id="ValorPoliza_Danos" name="ValorPoliza_Danos" oninput="formatNumberInput(this)" onkeypress="validateNumericInput(event)"/>
+                            <label for="ValorPoliza_Danos">Valor Póliza Daños (mes)</label>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div id="Container_VisualDocsIA">
+            <div class="row">
+              <div class="col-md-8" id="DivIframeDoc1">
+                <div class="card">
+                  <div class="card-header">
+                    <div class="card-head-row" style="display: block;">
+                      <div class="row">
+                        <div class="col-8">
+                          <div class="card-title">Documentos del Inmueble</div>
+                        </div>
+                        <div class="col-4" style="text-align: right;">
+                          <a id="ButtonEditarContrato" class="btn btn-warning mb-2" target="_blank"
+                            hidden><i class="bi bi-pencil"></i> Editar Contrato</a>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="card-body">
+                      <div class="container-fluid testimonial wow zoomInDown card-tools" data-wow-delay="0.1s">
+                        <div class="container">
+                          <div id="ContainerValidationDocs" class="testimonial-carousel owl-carousel">
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="col-md-4 ps-md-0" id="Card_OnboardingChat">
+                <div class="card-pricing2 card-secondary">
+                  <div class="pricing-header">
+                    <h3 class="fw-bold mb-3">Inspección Inteligente</h3>
+                    <span class="sub-title">La IA te ayudará a identifcar la situación jurídica actual del inmueble.</span>
+                  </div>
+                  <div class="price-value">
+                    <div class="value">
+                      <lottie-player src="https://lottie.host/208e235d-c3b3-4a58-9392-dd7428a06212/sN4P1XEvuJ.json"
+                        background="transparent" speed="1" style="width: 100%;height: 100%;" loop autoplay direction="1"
+                        mode="normal"></lottie-player>
+                    </div>
+                  </div>
+                  <ul class="pricing-content">
+                    <li>Consultar embargos, hipotecas y procesos jurídicos pendientes.</li>
+                  </ul>
+                  <a id="Button_Iniciar_Analisis" class="btn btn-secondary btn-border btn-lg w-75 fw-bold mb-3">Analizar
+                    Documetos</a>
+                  <div class="col-auto">
+                    <label class="colorinput">
+                      <input id="CheckSinIA" name="color" type="checkbox" value="dark" class="colorinput-input">
+                      <span class="colorinput-color bg-primary" style="vertical-align: middle;margin-right: 10px;"></span>
+                      ¿No usar modelo IA?
+                    </label>
+                  </div>
+                  <div id="overlay_CardIA" style="display: none;">
+                    <div class="card card-annoucement card-round" style="background: #00525b00 !important;">
+                      <div class="card-body d-flex flex-column align-items-center mt--4">
+
+                        <dotlottie-player src="https://lottie.host/ea9df5ac-869e-4e87-b371-3afcd25a252c/fkoal6kwTk.json"
+                          background="transparent" speed="1" style="width: 250px; height: 250px" direction="1"
+                          playMode="normal" loop autoplay></dotlottie-player>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="col-md-4 m-auto" id="Card_ChatAI" style="display: none;">
+                <div class="card card-round">
+                  <div class="card-body">
+                    <div id="DivResultModelIA">
+                      <div id="CardValidationIAError" class="card card-stats card-warning card-round" hidden>
+                        <div class="card-body">
+                          <div class="row">
+                            <div class="col-4">
+                              <div class="icon-big text-center fs-big">
+                                <i class="fa-solid fa-triangle-exclamation"></i>
+                              </div>
+                            </div>
+                            <div class="col-8 col-stats">
+                              <div class="numbers text-center">
+                                <p class="card-category fw-8">DOCUMENTOS ERRADOS</p>
+                                <p class="card-category text-card-success">Los documentos no corresponden a los
+                                  solicitados.</p>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      <div id="CardValidationDocsSuccess" class="card card-stats card-success card-round" hidden>
+                        <div class="card-body">
+                          <div class="row">
+                            <div class="col-4">
+                              <div class="icon-big text-center fs-big">
+                                <i class="far fa-check-circle"></i>
+                              </div>
+                            </div>
+                            <div class="col-8 col-stats">
+                              <div class="numbers text-center">
+                                <p class="card-category fw-8">VALIDACIÓN CTL EXITOSA</p>
+                                <p class="card-category text-card-success">El número de documento coincide con el CTL.
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      <div id="CardValidationProceduresPropertySuccess" class="card card-stats card-success card-round"
+                        hidden>
+                        <div class="card-body">
+                          <div class="row">
+                            <div class="col-4">
+                              <div class="icon-big text-center fs-64">
+                                <i class="fa-solid fa-house-circle-check"></i>
+                              </div>
+                            </div>
+                            <div class="col-8 col-stats">
+                              <div class="numbers text-center">
+                                <p class="card-category fw-8">VALIDACIÓN TRAMITES EXITOSA</p>
+                                <p class="card-category text-card-success">Inmueble sin afectación.</p>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      <div id="CardValidationSarlaftSuccess" class="card card-stats card-success card-round" hidden>
+                        <div class="card-body">
+                          <div class="row">
+                            <div class="col-4">
+                              <div class="icon-big text-center fs-big">
+                                <i class="far fa-check-circle"></i>
+                              </div>
+                            </div>
+                            <div class="col-8 col-stats">
+                              <div class="numbers text-center">
+                                <p class="card-category fw-8">VALIDACIÓN SARLAFT EXITOSA</p>
+                                <p class="card-category text-card-success">El número de documento coincide con el
+                                  Formulario B-14.</p>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      <div id="CardValidationDocsError" class="card card-stats card-danger card-round" hidden>
+                        <div class="card-body">
+                          <div class="row">
+                            <div class="col-4">
+                              <div class="icon-big text-center fs-64">
+                                <i class="fa-regular fa-circle-xmark"></i>
+                              </div>
+                            </div>
+                            <div class="col-8 col-stats">
+                              <div class="numbers text-center">
+                                <p class="card-category fw-8">VALIDACIÓN INCORRECTA</p>
+                                <p id="TextDescripcionDocsNoCoinciden" class="card-category text-card-success"></p>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      <div id="CardValidationProceduresPropertyError" class="card card-stats card-danger card-round"
+                        hidden>
+                        <div class="card-body">
+                          <div class="row">
+                            <div class="col-4">
+                              <div class="icon-big text-center fs-64">
+                                <i class="fa-solid fa-house-circle-xmark"></i>
+                              </div>
+                            </div>
+                            <div class="col-8 col-stats">
+                              <div class="numbers text-center">
+                                <p class="card-category fw-8">AFECTACIÓN</p>
+                                <p id="TextDescripcionAfectacion" class="card-category text-card-success"></p>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      <div id="CardValidationSarlaftError" class="card card-stats card-danger card-round" hidden>
+                        <div class="card-body">
+                          <div class="row">
+                            <div class="col-4">
+                              <div class="icon-big text-center fs-64">
+                                <i class="fa-regular fa-circle-xmark"></i>
+                              </div>
+                            </div>
+                            <div class="col-8 col-stats">
+                              <div class="numbers text-center">
+                                <p class="card-category fw-8">VALIDACIÓN INCORRECTA SARLAFT</p>
+                                <p id="TextDescripcionSarlaftNoCoincide" class="card-category text-card-success"></p>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      <div class="form-group text-center" id="DivSelectValidarResultIA" style="display: none;">
+                        <label for="SelectValidarResultIA">¿Validaste el Resultado de la IA?</label>
+                        <select class="form-select" id="SelectValidarResultIA">
+                          <option selected disabled hidden></option>
+                          <option value="Si">Si</option>
+                          <option value="No">No</option>
+                        </select>
+                      </div>
+                      <div class="form-group text-center" id="DivSelectGestionCasoValidarDocs" style="display: none;">
+                        <label for="SelectGestionCasoValidarDocs">Gestionar Caso</label>
+                        <select class="form-select" id="SelectGestionCasoValidarDocs">
+                          <option selected disabled hidden></option>
+                          <option value="Corregir Documentos">Corregir Documentos</option>
+                          <option value="Desistir">Desistir</option>
+                          <option value="Generar Contrato">Generar Contrato</option>
+                        </select>
+                      </div>
+                      <input type="text" id="NroMatriculaGC" hidden>
+                      <div id="overlay_CardIAModal2" style="display: none;margin-left: 70px;">
+
+                        <dotlottie-player src="https://lottie.host/ea9df5ac-869e-4e87-b371-3afcd25a252c/fkoal6kwTk.json"
+                          background="transparent" speed="1" style="width: 150px; height: 150px" direction="1"
+                          playMode="normal" loop autoplay></dotlottie-player>
+                      </div>
+                    </div>
+                    <div class="overflow-auto text-center" id="DatosContrato" hidden>
+                      <label class="mt-3 mb-3"><b>Datos del Contrato</b></label>
+                      <div id="DivDatosContratoFinal">
+                        <div class="form-floating form-floating-custom mb-3">
+                          <input type="text" class="form-control" id="Dato1Contrato"/>
+                          <label for="Dato1Contrato"><i class="fa-regular fa-user"></i> Nombre Arrendador</label>
+                        </div>
+                        <div class="form-floating form-floating-custom mb-3">
+                          <input type="text" class="form-control" id="Dato2Contrato"/>
+                          <label for="Dato2Contrato"><i class="fa-regular fa-address-card"></i> Documento Arrendador</label>
+                        </div>
+                        <div class="form-floating form-floating-custom mb-3">
+                          <input type="text" class="form-control" id="Dato3Contrato"/>
+                          <label for="Dato3Contrato"><i class="fa-regular fa-user"></i> Nombre Arrendatario</label>
+                        </div>
+                        <div class="form-floating form-floating-custom mb-3">
+                          <input type="text" class="form-control" id="Dato4Contrato"/>
+                          <label for="Dato4Contrato"><i class="fa-regular fa-address-card"></i> Documento Arrendatario</label>
+                        </div>
+                        <div class="form-floating form-floating-custom mb-3">
+                          <input type="text" class="form-control" id="Dato5Contrato"/>
+                          <label for="Dato5Contrato"><i class="fa-solid fa-location-dot"></i> Dirección Inmueble</label>
+                        </div>
+                        <div class="form-floating form-floating-custom mb-3">
+                          <input type="text" class="form-control" id="Dato6Contrato"/>
+                          <label for="Dato6Contrato"><i class="fa-solid fa-city"></i> Ciudad Inmueble</label>
+                        </div>
+                        <div class="form-floating form-floating-custom mb-3">
+                          <input type="text" class="form-control" id="Dato7Contrato"/>
+                          <label for="Dato7Contrato"><i class="fa-solid fa-city"></i> Ciudad Oficina de Registro</label>
+                        </div>
+                        <div class="form-floating form-floating-custom mb-3">
+                          <input type="text" class="form-control" id="Dato8Contrato"/>
+                          <label for="Dato8Contrato"><i class="fa-solid fa-hashtag"></i> Matricula Inmobiliaria</label>
+                        </div>
+                        <div class="form-floating form-floating-custom mb-3">
+                          <input type="text" class="form-control" id="Dato9Contrato"/>
+                          <label for="Dato9Contrato"><i class="fa-solid fa-dollar-sign"></i> Valor Canon Arrendamiento</label>
+                        </div>
+                        <div class="form-floating form-floating-custom mb-3">
+                          <input type="text" class="form-control" id="Dato10Contrato"/>
+                          <label for="Dato10Contrato"><i class="fa-solid fa-dollar-sign"></i> Valor Canon Arrendamiento(texto)</label>
+                        </div>
+                        <div class="form-floating form-floating-custom mb-3">
+                          <input type="text" class="form-control" id="Dato11Contrato"/>
+                          <label for="Dato11Contrato"><i class="fa-solid fa-money-bill-transfer"></i> Tipo Cuenta</label>
+                        </div>
+                        <div class="form-floating form-floating-custom mb-3">
+                          <input type="text" class="form-control" id="Dato12Contrato"/>
+                          <label for="Dato12Contrato"><i class="fa-solid fa-money-check-dollar"></i> No. Cuenta</label>
+                        </div>
+                        <div class="form-floating form-floating-custom mb-3">
+                          <input type="text" class="form-control" id="Dato13Contrato"/>
+                          <label for="Dato13Contrato"><i class="fa-solid fa-building-columns"></i> Banco de la Cuenta</label>
+                        </div>
+                        <div class="form-floating form-floating-custom mb-3">
+                          <input type="text" class="form-control" id="Dato14Contrato"/>
+                          <label for="Dato14Contrato"><i class="fa-regular fa-user"></i> Nombre del Titular de la Cuenta</label>
+                        </div>
+                        <div class="form-floating form-floating-custom mb-3">
+                          <input type="text" class="form-control" id="Dato15Contrato"/>
+                          <label for="Dato15Contrato"><i class="fa-regular fa-calendar-check"></i> Vigencia de la poliza</label>
+                        </div>
+                        <div class="form-floating form-floating-custom mb-3">
+                          <input type="text" class="form-control" id="Dato16Contrato"/>
+                          <label for="Dato16Contrato"><i class="fa-regular fa-calendar-days"></i> Día Inicio Póliza</label>
+                        </div>
+                        <div class="form-floating form-floating-custom mb-3">
+                          <input type="text" class="form-control" id="Dato17Contrato"/>
+                          <label for="Dato17Contrato"><i class="fa-regular fa-calendar-days"></i> Mes Inicio Póliza</label>
+                        </div>
+                        <div class="form-floating form-floating-custom mb-3">
+                          <input type="text" class="form-control" id="Dato18Contrato"/>
+                          <label for="Dato18Contrato"><i class="fa-regular fa-calendar-days"></i> Año Inicio Póliza</label>
+                        </div>
+                        <div class="form-floating form-floating-custom mb-3">
+                          <input type="text" class="form-control" id="Dato19Contrato"/>
+                          <label for="Dato19Contrato"><i class="fa-solid fa-hashtag"></i> Nro Solicitud Estudio</label>
+                        </div>
+                      </div>
+                      <div id="DivDeudores">
+                      </div>
+                      <div id="DivSelectDeudores" class="form-floating form-floating-custom mb-3">
+                        <select class="form-select" id="SelectDeudores">
+                            <option disabled selected hidden></option>
+                            <option value="No Aplica">No Aplica</option>
+                            <option value="1">1</option>
+                            <option value="2">2</option>
+                            <option value="3">3</option>
+                            <option value="4">4</option>
+                            <option value="5">5</option>
+                          </select>
+                        <label for="SelectDeudores"><i class="fa-solid fa-wallet"></i> Cantidad Deudores</label>
+                      </div>
+                      <form id="FormCargarPoliza" hidden>
+                        <input type="text" id="RefCargarPoliza" name="RefCargarPoliza" hidden>
+                        <div class="form-floating form-floating-custom mb-3">
+                          <input type="file" class="form-control" id="Dato20Contrato" name="Dato20Contrato"/>
+                          <label for="Dato20Contrato"><i class="fa-solid fa-file-arrow-up"></i> Adjuntar Poliza</label>
+                        </div>
+                      </form>
+                      <input type="text" id="IdContratoFinal" name="IdContratoFinal" hidden>
+                      <input type="text" id="IdPoliza" name="IdPoliza" hidden>
+                      <button id="ButtonCompletarContrato" class="btn btn-warning mb-2"><i class="bi bi-pencil-square"></i> Completar Contrato</button>
+                      <button id="ButtonEnviarContratoFirma" class="btn btn-success mb-2" hidden><i class="bi bi-send"></i> Enviar Contrato</button>
+                      <div id="overlay_CardIA3" style="display: none;">
+                        <div class="card card-annoucement card-round" style="background: #00525b00 !important;">
+                          <div class="card-body d-flex flex-column align-items-center mt--4">
+
+                            <dotlottie-player
+                              src="https://lottie.host/ea9df5ac-869e-4e87-b371-3afcd25a252c/fkoal6kwTk.json"
+                              background="transparent" speed="1" style="width: 250px; height: 250px" direction="1"
+                              playMode="normal" loop autoplay></dotlottie-player>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div id="overlay_Modal2" style="display:none;">
+    <div class="container h-100">
+      <div id="Container_Scroll_Modal" class="page-inner mt-3 pill-scrollbar fade-in"
+        style="background-color: #f5f5f5;border-radius: 10px;height: 95%;overflow-y: auto;">
+        <div class="modal-header px-md-5 py-md-4 mt-2 mb-3 shadow-sm border-0">
+          <h3 class="h5 fw-extrabold mb-0">Detalle General</h3>
+          <button id="ButtonCerrarModal2" type="button" class="btn-close me-1 p-2" data-bs-dismiss="modal" aria-label="Close">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-6 h-6">
+            <path fill-rule="evenodd" d="M5.47 5.47a.75.75 0 011.06 0L12 10.94l5.47-5.47a.75.75 0 111.06 1.06L13.06 12l5.47 5.47a.75.75 0 11-1.06 1.06L12 13.06l-5.47 5.47a.75.75 0 01-1.06-1.06L10.94 12 5.47 6.53a.75.75 0 010-1.06z" clip-rule="evenodd" />
+            </svg>
+          </button>
+        </div>
+        <div class="row justify-content-center">
+          <div class="col-sm-6 col-lg-3">
+            <div class="card p-3">
+              <div class="d-flex align-items-center">
+                <span class="stamp stamp-md bg-danger me-3"><i class="bi bi-person-rolodex fs-4"></i></span>
+                <div>
+                  <h5 class="mb-1">
+                    <b><a id="Ref_Solicitud_Cliente_Modal2" name="Ref_Solicitud_Cliente_Modal2" ></a></b>
+                  </h5>
+                  <small class="text-muted">Id Solicitud</small>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="col-sm-6 col-lg-3">
+            <div class="card p-3">
+              <div class="d-flex align-items-center">
+                <span class="stamp stamp-md bg-primary me-3"><i class="bi bi-stopwatch fs-4"></i></span>
+                <div>
+                  <h5 class="mb-1">
+                    <b><a id="Fecha_Solicitud_Cliente_Modal2" name="Fecha_Solicitud_Cliente_Modal2"></a></b>
+                  </h5>
+                  <small class="text-muted">Fecha de Ingreso</small>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="col-sm-6 col-lg-3">
+            <div class="card p-3">
+              <div class="d-flex align-items-center">
+                <span class="stamp stamp-md bg-secondary me-3"><i class="bi bi-buildings fs-4"></i></span>
+                <div>
+                  <h5 class="mb-1">
+                    <b><a id="Destino_Solicitud_Cliente_Modal2" name="Destino_Solicitud_Cliente_Modal2"></a></b>
+                  </h5>
+                  <small class="text-muted">Destino del Inmueble</small>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="col-sm-6 col-lg-3">
+            <div class="card p-3">
+              <div class="d-flex align-items-center">
+                <span class="stamp stamp-md bg-danger me-3"><i class="bi bi-image-alt fs-4"></i></span>
+                <div>
+                  <h5 class="mb-1">
+                    <b><a id="Ciudad_Solicitud_Cliente_Modal2" name="Ciudad_Solicitud_Cliente_Modal2"></a></b>
+                  </h5>
+                  <small class="text-muted">Ciudad del Inmueble</small>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="col-sm-6 col-lg-3">
+            <div class="card p-3">
+              <div class="d-flex align-items-center">
+                <span class="stamp stamp-md bg-warning me-3"><i class="bi bi-telephone-outbound fs-4"></i></span>
+                <div>
+                  <h5 class="mb-1">
+                    <b><a id="Contacto_Solicitud_Cliente_Modal2" name="Contacto_Solicitud_Cliente_Modal2"></a></b>
+                  </h5>
+                  <small class="text-muted">Número de Contacto</small>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="col-sm-6 col-lg-3">
+            <div class="card p-3">
+              <div class="d-flex align-items-center">
+                <span class="stamp stamp-md bg-success me-3"><i class="bi bi-bank fs-4"></i></span>
+                <div>
+                  <h5 class="mb-1">
+                    <b><a id="ValorTotal_Solicitud_Cliente_Modal2" name="ValorTotal_Solicitud_Cliente_Modal2"></a></b>
+                  </h5>
+                  <small class="text-muted">Valor Total Aseguramiento</small>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="col-sm-6 col-lg-3">
+            <div class="card p-3">
+              <div class="d-flex align-items-center">
+                <span class="stamp stamp-md bg-success me-3"><i class="fa-solid fa-file-signature fs-4"></i></span>
+                <div>
+                  <h5 class="mb-1">
+                    <b><a id="Generar_Contrato_Cliente_Modal2" name="Generar_Contrato_Cliente_Modal2"></a></b>
+                  </h5>
+                  <small class="text-muted">¿Generar Contrato?</small>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="col-sm-6 col-lg-3">
+            <div class="card p-3">
+              <div class="d-flex align-items-center">
+                <span class="stamp stamp-md bg-primary me-3"><i class="fa-solid fa-lock fs-4"></i></span>
+                <div>
+                  <h5 class="mb-1">
+                    <b><a id="Usuario_Autoriza_Modal2" name="Usuario_Autoriza_Modal2"></a></b>
+                  </h5>
+                  <small class="text-muted">Funcionario Otorga Permiso</small>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="row">
+          <div id="">
+            <div class="row justify-content-center">
+              <div class="col-md-12">
+                <div class="card">
+                  <div class="card-header">
+                    <div class="card-head-row">
+                      <div class="card-title">Detalle Información Lead</div>
+                    </div>
+                  </div>
+                  <div class="card-body">
+                    <div class="row justify-content-center">
+                      <div class="col-md-6 col-lg-4  pb-3">
+                        <div class="d-flex align-items-center">
+                          <div class="icon-circle me-3">
+                            <i class="bi bi-person"></i>
+                          </div>
+                          <div class="form-floating form-floating-custom flex-grow-1">
+                            <input type="text" class="form-control" id="Name_Cliente_Modal2" name="Name_Cliente_Modal2"/>
+                            <label for="Name_Cliente_Modal2">Nombre del Cliente</label>
+                          </div>
+                        </div>
+                      </div>
+                      <div class="col-md-6 col-lg-3  pb-3">
+                        <div class="d-flex align-items-center">
+                          <div class="icon-circle me-3">
+                            <i class="bi bi-person-bounding-box"></i>
+                          </div>
+                          <div class="form-floating form-floating-custom flex-grow-1">
+                            <input type="text" class="form-control" id="Cedula_Modal2" name="Cedula_Modal2"/>
+                            <label for="Cedula_Modal2">Número de Identificación</label>
+                          </div>
+                        </div>
+                      </div>
+                      <div class="col-md-6 col-lg-3  pb-3">
+                        <div class="d-flex align-items-center">
+                          <div class="icon-circle me-3">
+                            <i class="bi bi-people-fill"></i>
+                          </div>
+                          <div class="form-floating form-floating-custom flex-grow-1">
+                            <input type="text" class="form-control" id="Tomador_Modal2" name="Tomador_Modal2"/>
+                            <label for="Tomador_Modal2">Tomador Póliza</label>
+                          </div>
+                        </div>
+                      </div>
+                      <div class="col-md-6 col-lg-2  pb-3">
+                        <div class="d-flex align-items-center">
+                          <div class="icon-circle me-3">
+                            <i class="fa-solid fa-address-card"></i>
+                          </div>
+                          <div class="form-floating form-floating-custom flex-grow-1">
+                            <input type="text" class="form-control" id="Tipo_Documento_Modal2" name="Tipo_Documento_Modal2"/>
+                            <label for="Tipo_Documento_Modal2">Tipo Documento</label>
+                          </div>
+                        </div>
+                      </div>
+                      <div class="col-md-6 col-lg-4 pb-3">
+                        <div class="d-flex align-items-center">
+                          <div class="icon-circle me-3">
+                            <i class="bi bi-envelope-at"></i>
+                          </div>
+                          <div class="form-floating form-floating-custom flex-grow-1">
+                            <input type="text" class="form-control" id="Correo_Modal2" name="Correo_Modal2"/>
+                            <label for="Correo_Modal">Correo Electrónico</label>
+                          </div>
+                        </div>
+                      </div>
+                      <div class="col-md-6 col-lg-6 pb-3">
+                        <div class="d-flex align-items-center">
+                          <div class="icon-circle me-3">
+                            <i class="bi bi-map"></i>
+                          </div>
+                          <div class="form-floating form-floating-custom flex-grow-1">
+                            <input type="text" class="form-control" id="Direccion_Modal2" name="Direccion_Modal2"/>
+                            <label for="Direccion_Modal2">Dirección del Inmueble</label>
+                          </div>
+                        </div>
+                      </div>
+                      <div class="col-md-6 col-lg-2  pb-3">
+                        <div class="d-flex align-items-center">
+                          <div class="icon-circle me-3">
+                            <i class="bi bi-calendar-event"></i>
+                          </div>
+                          <div class="form-floating form-floating-custom flex-grow-1">
+                            <input type="text" class="form-control" id="Fecha_Inicio_Modal2" name="Fecha_Inicio_Modal2"/>
+                            <label for="Fecha_Inicio_Modal">Fecha Inicio Póliza</label>
+                          </div>
+                        </div>
+                      </div>
+                      <div class="col-md-6 col-lg-3  pb-3">
+                        <div class="d-flex align-items-center">
+                          <div class="icon-circle me-3">
+                            <i class="bi bi-currency-dollar"></i>
+                          </div>
+                          <div class="form-floating form-floating-custom flex-grow-1">
+                            <input type="text" class="form-control" id="ValorCanon_Validation2" name="ValorCanon_Validation2" hidden>
+                            <input type="text" class="form-control" id="ValorCanon_Inmueble2" name="ValorCanon_Inmueble2" oninput="formatNumberInput(this)" onkeypress="validateNumericInput(event)"/>
+                            <label for="ValorCanon_Inmueble2">Canón Arrendamiento</label>
+                          </div>
+                        </div>
+                      </div>
+                      <div class="col-md-6 col-lg-3  pb-3">
+                        <div class="d-flex align-items-center">
+                          <div class="icon-circle me-3">
+                            <i class="bi bi-currency-dollar"></i>
+                          </div>
+                          <div class="form-floating form-floating-custom flex-grow-1">
+                            <input type="text" class="form-control" id="ValorAdmon_Validation2" name="ValorAdmon_Validation2" hidden>
+                            <input type="text" class="form-control" id="ValorAdmon_Inmueble2" name="ValorAdmon_Inmueble2" oninput="formatNumberInput(this)" onkeypress="validateNumericInput(event)"/>
+                            <label for="ValorAdmon_Inmueble2">Valor Admon</label>
+                          </div>
+                        </div>
+                      </div>
+                      <div class="col-md-6 col-lg-3  pb-3">
+                        <div class="d-flex align-items-center">
+                          <div class="icon-circle me-3">
+                            <i class="bi bi-currency-dollar"></i>
+                          </div>
+                          <div class="form-floating form-floating-custom flex-grow-1">
+                            <input type="text" class="form-control" id="ValorTotal_Inmueble2" name="ValorTotal_Inmueble2" oninput="formatNumberInput(this)" onkeypress="validateNumericInput(event)" disabled/>
+                            <label for="ValorAdmon_Inmueble2">Total Monto Mensual</label>
+                          </div>
+                        </div>
+                      </div>
+                      <div class="col-md-6 col-lg-3  pb-3">
+                        <div class="d-flex align-items-center">
+                          <div class="icon-circle me-3">
+                            <i class="bi bi-calendar-event"></i>
+                          </div>
+                          <div class="form-floating form-floating-custom flex-grow-1">
+                            <select class="form-select" id="Vigencia_Modal2" name="Vigencia_Modal2">
+                              <option value="6 meses">6 meses</option>
+                              <option value="7 meses">7 meses</option>
+                              <option value="8 meses">8 meses</option>
+                              <option value="9 meses">9 meses</option>
+                              <option value="10 meses">10 meses</option>
+                              <option value="11 meses">11 meses</option>
+                              <option value="12 meses">12 meses</option>
+                            </select>
+                            <label for="Vigencia_Modal2">Vigencia Póliza</label>
+                          </div>
+                        </div>
+                      </div>
+                      <div class="col-md-6 col-lg-3  pb-3">
+                        <div class="d-flex align-items-center">
+                          <div class="icon-circle me-3">
+                            <i class="bi bi-file-text"></i>
+                          </div>
+                          <div class="form-floating form-floating-custom flex-grow-1">
+                            <input type="text" class="form-control" id="Quien_Firma_Modal2" name="Quien_Firma_Modal2"/>
+                            <label for="Quien_Firma_Modal2">¿Quién firma el contrato?</label>
+                          </div>
+                        </div>
+                      </div>
+                      <div class="col-md-6 col-lg-3  pb-3">
+                        <div class="d-flex align-items-center">
+                          <div class="icon-circle me-3">
+                            <i class="bi bi-backpack4"></i>
+                          </div>
+                          <div class="form-floating form-floating-custom flex-grow-1">
+                            <input type="text" class="form-control" id="ValorPoliza_Danos2" name="ValorPoliza_Danos2" oninput="formatNumberInput(this)" onkeypress="validateNumericInput(event)"/>
+                            <label for="ValorPoliza_Danos2">Valor Póliza Daños</label>
+                          </div>
+                        </div>
+                      </div>
+                      <div class="col-md-6 col-lg-3  pb-3">
+                        <div class="d-flex align-items-center">
+                          <div class="icon-circle me-3">
+                            <i class="bi bi-file-text"></i>
+                          </div>
+                          <div class="form-floating form-floating-custom flex-grow-1">
+                            <input type="text" class="form-control" id="ValorDaños_Modal2" name="ValorDaños_Modal2"/>
+                            <label for="ValorDaños_Modal2">Cobertura Daños</label>
+                          </div>
+                        </div>
+                      </div>
+                      <div class="col-md-6 col-lg-3  pb-3">
+                        <div class="d-flex align-items-center">
+                          <div class="icon-circle me-3">
+                            <i class="bi bi-backpack4"></i>
+                          </div>
+                          <div class="form-floating form-floating-custom flex-grow-1">
+                            <input type="text" class="form-control" id="ValorPoliza_Servicios" name="ValorPoliza_Servicios" hidden>
+                            <input type="text" class="form-control" id="Valor_Poliza_Servicios_Inmueble" name="Valor_Poliza_Servicios_Inmueble" oninput="formatNumberInput(this)" onkeypress="validateNumericInput(event)"/>
+                            <label for="Valor_Poliza_Servicios_Inmueble">Valor Póliza Servicios</label>
+                          </div>
+                        </div>
+                      </div>
+                      <div class="col-md-6 col-lg-3  pb-3">
+                        <div class="d-flex align-items-center">
+                          <div class="icon-circle me-3">
+                            <i class="bi bi-file-text"></i>
+                          </div>
+                          <div class="form-floating form-floating-custom flex-grow-1">
+                            <input type="text" class="form-control" id="ValorServicios_Modal2" name="ValorServicios_Modal2"/>
+                            <label for="ValorServicios_Modal2">Cobertura Servicios</label>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div>
+            <div class="row">
+              <div class="col-md-8" id="">
+                <div class="card">
+                  <div class="card-header">
+                    <div class="card-head-row" style="display: block;">
+                      <div class="row">
+                        <div class="col-8">
+                          <div class="card-title">Documentos del Inmueble</div>
+                        </div>
+                        <div class="col-4" style="text-align: right;">
+                          <a id="ButtonEditarContrato2" class="btn btn-warning mb-2" target="_blank"
+                            hidden><i class="bi bi-pencil"></i> Editar Contrato</a>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="card-body">
+                      <div class="container-fluid testimonial wow zoomInDown card-tools" data-wow-delay="0.1s">
+                        <div class="container">
+                          <div id="ContainerValidationDocs2" class="testimonial-carousel owl-carousel">
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="col-md-4 ps-md-0" id="Card_OnboardingChat2">
+                <div class="card-pricing2 card-secondary">
+                  <div class="pricing-header">
+                    <h3 class="fw-bold mb-3">Inspección Inteligente</h3>
+                    <span class="sub-title">La IA te ayudará a identifcar la situación jurídica actual del inmueble.</span>
+                  </div>
+                  <div class="price-value">
+                    <div class="value">
+                      <lottie-player src="https://lottie.host/208e235d-c3b3-4a58-9392-dd7428a06212/sN4P1XEvuJ.json"
+                        background="transparent" speed="1" style="width: 100%;height: 100%;" loop autoplay direction="1"
+                        mode="normal"></lottie-player>
+                    </div>
+                  </div>
+                  <ul class="pricing-content">
+                    <li>Consultar embargos, hipotecas y procesos jurídicos pendientes.</li>
+                  </ul>
+                  <a id="Button_Iniciar_Analisis2"
+                    class="btn btn-secondary btn-border btn-lg w-75 fw-bold mb-3">Analizar
+                    Documetos</a>
+                  <div class="col-auto">
+                    <label class="colorinput">
+                      <input id="CheckSinIA2" name="color" type="checkbox" value="dark" class="colorinput-input">
+                      <span class="colorinput-color bg-primary" style="vertical-align: middle;margin-right: 10px;"></span>
+                      ¿No usar modelo IA?
+                    </label>
+                  </div>
+                  <div id="overlay_CardIA2" style="display: none;">
+                    <div class="card card-annoucement card-round" style="background: #00525b00 !important;">
+                      <div class="card-body d-flex flex-column align-items-center mt--4">
+
+                        <dotlottie-player src="https://lottie.host/ea9df5ac-869e-4e87-b371-3afcd25a252c/fkoal6kwTk.json"
+                          background="transparent" speed="1" style="width: 250px; height: 250px" direction="1"
+                          playMode="normal" loop autoplay></dotlottie-player>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="col-md-4 m-auto" id="Card_ChatAIModal2" style="display: none;">
+                <div class="card card-round">
+                  <div class="card-body">
+                    <div id="DivResultModelIAModal2">
+                      <div id="CardValidationIAError2" class="card card-stats card-warning card-round" hidden>
+                        <div class="card-body">
+                          <div class="row">
+                            <div class="col-4">
+                              <div class="icon-big text-center fs-big">
+                                <i class="fa-solid fa-triangle-exclamation"></i>
+                              </div>
+                            </div>
+                            <div class="col-8 col-stats">
+                              <div class="numbers text-center">
+                                <p class="card-category fw-8">DOCUMENTOS ERRADOS</p>
+                                <p class="card-category text-card-success">Los documentos no corresponden a los
+                                  solicitados.</p>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      <div id="CardValidationDocsSuccess2" class="card card-stats card-success card-round" hidden>
+                        <div class="card-body">
+                          <div class="row">
+                            <div class="col-4">
+                              <div class="icon-big text-center fs-big">
+                                <i class="far fa-check-circle"></i>
+                              </div>
+                            </div>
+                            <div class="col-8 col-stats">
+                              <div class="numbers text-center">
+                                <p class="card-category fw-8">VALIDACIÓN DOCUMENTOS EXITOSA</p>
+                                <p class="card-category text-card-success">Los documentos coinciden.</p>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      <div id="CardValidationProceduresPropertySuccess2" class="card card-stats card-success card-round"
+                        hidden>
+                        <div class="card-body">
+                          <div class="row">
+                            <div class="col-4">
+                              <div class="icon-big text-center fs-64">
+                                <i class="fa-solid fa-house-circle-check"></i>
+                              </div>
+                            </div>
+                            <div class="col-8 col-stats">
+                              <div class="numbers text-center">
+                                <p class="card-category fw-8">VALIDACIÓN TRAMITES EXITOSA</p>
+                                <p class="card-category text-card-success">Inmueble sin afectación.</p>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      <div id="CardValidationDocsError2" class="card card-stats card-danger card-round" hidden>
+                        <div class="card-body">
+                          <div class="row">
+                            <div class="col-4">
+                              <div class="icon-big text-center fs-64">
+                                <i class="fa-regular fa-circle-xmark"></i>
+                              </div>
+                            </div>
+                            <div class="col-8 col-stats">
+                              <div class="numbers text-center">
+                                <p class="card-category fw-8">VALIDACIÓN INCORRECTA</p>
+                                <p id="TextDescripcionDocsNoCoinciden2" class="card-category text-card-success"></p>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      <div id="CardValidationProceduresPropertyError2" class="card card-stats card-danger card-round"
+                        hidden>
+                        <div class="card-body">
+                          <div class="row">
+                            <div class="col-4">
+                              <div class="icon-big text-center fs-64">
+                                <i class="fa-solid fa-house-circle-xmark"></i>
+                              </div>
+                            </div>
+                            <div class="col-8 col-stats">
+                              <div class="numbers text-center">
+                                <p class="card-category fw-8">AFECTACIÓN</p>
+                                <p id="TextDescripcionAfectacion2" class="card-category text-card-success"></p>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      <div class="form-group text-center" id="DivSelectValidarResultIA2" style="display: none;">
+                        <label for="SelectValidarResultIA">¿Validaste el Resultado de la IA?</label>
+                        <select class="form-select" id="SelectValidarResultIA2">
+                          <option selected disabled hidden></option>
+                          <option value="Si">Si</option>
+                          <option value="No">No</option>
+                        </select>
+                      </div>
+                      <div class="form-group text-center" id="DivSelectGestionCasoValidarDocs2" style="display: none;">
+                        <label for="SelectGestionCasoValidarDocs2">Gestionar Caso</label>
+                        <select class="form-select" id="SelectGestionCasoValidarDocs2">
+                        </select>
+                      </div>
+                      <input type="text" id="NroMatriculaGCModal2" hidden>
+                      <div id="overlay_CardIA2Modal2" style="display: none;">
+
+                        <dotlottie-player src="https://lottie.host/ea9df5ac-869e-4e87-b371-3afcd25a252c/fkoal6kwTk.json"
+                          background="transparent" speed="1" style="width: 150px; height: 150px" direction="1"
+                          playMode="normal" loop autoplay></dotlottie-player>
+                      </div>
+                    </div>
+                    <div class="overflow-auto text-center" id="DatosContratoModal2" hidden>
+                      <div id="DivDatosCompletarContrato">
+                        <label class="mt-3 mb-3"><b>Datos del Contrato</b></label>
+                        <div id="DivDatosContratoFinalModal2">
+                          <div class="form-floating form-floating-custom mb-3">
+                            <input type="text" class="form-control" id="Dato1ContratoModal2"/>
+                            <label for="Dato1ContratoModal2"><i class="fa-regular fa-user"></i> Nombre Arrendador</label>
+                          </div>
+                          <div class="form-floating form-floating-custom mb-3">
+                            <input type="text" class="form-control" id="Dato2ContratoModal2"/>
+                            <label for="Dato2ContratoModal2"><i class="fa-regular fa-address-card"></i> Documento Arrendador</label>
+                          </div>
+                          <div class="form-floating form-floating-custom mb-3">
+                            <input type="text" class="form-control" id="Dato3ContratoModal2"/>
+                            <label for="Dato3ContratoModal2"><i class="fa-regular fa-user"></i> Nombre Arrendatario</label>
+                          </div>
+                          <div class="form-floating form-floating-custom mb-3">
+                            <input type="text" class="form-control" id="Dato4ContratoModal2"/>
+                            <label for="Dato4ContratoModal2"><i class="fa-regular fa-address-card"></i> Documento Arrendatario</label>
+                          </div>
+                          <div class="form-floating form-floating-custom mb-3">
+                            <input type="text" class="form-control" id="Dato5ContratoModal2"/>
+                            <label for="Dato5ContratoModal2"><i class="fa-solid fa-location-dot"></i> Dirección Inmueble</label>
+                          </div>
+                          <div class="form-floating form-floating-custom mb-3">
+                            <input type="text" class="form-control" id="Dato6ContratoModal2"/>
+                            <label for="Dato6ContratoModal2"><i class="fa-solid fa-city"></i> Ciudad Inmueble</label>
+                          </div>
+                          <div class="form-floating form-floating-custom mb-3">
+                            <input type="text" class="form-control" id="Dato7ContratoModal2"/>
+                            <label for="Dato7ContratoModal2"><i class="fa-solid fa-city"></i> Ciudad Oficina de Registro</label>
+                          </div>
+                          <div class="form-floating form-floating-custom mb-3">
+                            <input type="text" class="form-control" id="Dato8ContratoModal2"/>
+                            <label for="Dato8ContratoModal2"><i class="fa-solid fa-hashtag"></i> Matricula Inmobiliaria</label>
+                          </div>
+                          <div class="form-floating form-floating-custom mb-3">
+                            <input type="text" class="form-control" id="Dato9ContratoModal2"/>
+                            <label for="Dato9ContratoModal2"><i class="fa-solid fa-dollar-sign"></i> Valor Canon Arrendamiento</label>
+                          </div>
+                          <div class="form-floating form-floating-custom mb-3">
+                            <input type="text" class="form-control" id="Dato10ContratoModal2"/>
+                            <label for="Dato10ContratoModal2"><i class="fa-solid fa-dollar-sign"></i> Valor Canon Arrendamiento(texto)</label>
+                          </div>
+                          <div class="form-floating form-floating-custom mb-3">
+                            <input type="text" class="form-control" id="Dato11ContratoModal2"/>
+                            <label for="Dato11ContratoModal2"><i class="fa-solid fa-money-bill-transfer"></i> Tipo Cuenta</label>
+                          </div>
+                          <div class="form-floating form-floating-custom mb-3">
+                            <input type="text" class="form-control" id="Dato12ContratoModal2"/>
+                            <label for="Dato12ContratoModal2"><i class="fa-solid fa-money-check-dollar"></i> No. Cuenta</label>
+                          </div>
+                          <div class="form-floating form-floating-custom mb-3">
+                            <input type="text" class="form-control" id="Dato13ContratoModal2"/>
+                            <label for="Dato13ContratoModal2"><i class="fa-solid fa-building-columns"></i> Banco de la Cuenta</label>
+                          </div>
+                          <div class="form-floating form-floating-custom mb-3">
+                            <input type="text" class="form-control" id="Dato14ContratoModal2"/>
+                            <label for="Dato14ContratoModal2"><i class="fa-regular fa-user"></i> Nombre del Titular de la Cuenta</label>
+                          </div>
+                          <div class="form-floating form-floating-custom mb-3">
+                            <input type="text" class="form-control" id="Dato15ContratoModal2"/>
+                            <label for="Dato15ContratoModal2"><i class="fa-regular fa-calendar-check"></i> Vigencia de la poliza</label>
+                          </div>
+                          <div class="form-floating form-floating-custom mb-3">
+                            <input type="text" class="form-control" id="Dato16ContratoModal2"/>
+                            <label for="Dato16ContratoModal2"><i class="fa-regular fa-calendar-days"></i> Día Inicio Póliza</label>
+                          </div>
+                          <div class="form-floating form-floating-custom mb-3">
+                            <input type="text" class="form-control" id="Dato17ContratoModal2"/>
+                            <label for="Dato17ContratoModal2"><i class="fa-regular fa-calendar-days"></i> Mes Inicio Póliza</label>
+                          </div>
+                          <div class="form-floating form-floating-custom mb-3">
+                            <input type="text" class="form-control" id="Dato18ContratoModal2"/>
+                            <label for="Dato18ContratoModal2"><i class="fa-regular fa-calendar-days"></i> Año Inicio Póliza</label>
+                          </div>
+                          <div class="form-floating form-floating-custom mb-3">
+                            <input type="text" class="form-control" id="Dato19ContratoModal2"/>
+                            <label for="Dato19ContratoModal2"><i class="fa-solid fa-hashtag"></i> Nro Solicitud Estudio</label>
+                          </div>
+                        </div>
+                        <div id="DivDeudoresModal2">
+                        </div>
+                        <div id="DivSelectDeudoresModal2" class="form-floating form-floating-custom mb-3">
+                          <select class="form-select" id="SelectDeudoresModal2">
+                            <option disabled selected hidden></option>
+                            <option value="No Aplica">No Aplica</option>
+                            <option value="1">1</option>
+                            <option value="2">2</option>
+                            <option value="3">3</option>
+                            <option value="4">4</option>
+                            <option value="5">5</option>
+                          </select>
+                          <label for="SelectDeudoresModal2"><i class="fa-solid fa-wallet"></i> Cantidad Deudores</label>
+                        </div>
+                      </div>
+                      <form id="FormCargarPolizaModal2" hidden>
+                        <input type="text" id="RefCargarPolizaModal2" name="RefCargarPolizaModal2" hidden>
+                        <input type="text" id="TipoEnvioPolizaModal2" name="TipoEnvioPolizaModal2" hidden>
+                        <div class="form-floating form-floating-custom mb-3">
+                          <input type="file" class="form-control" id="Dato20ContratoModal2" name="Dato20ContratoModal2"/>
+                          <label for="Dato20ContratoModal2"><i class="fa-solid fa-file-arrow-up"></i> Adjuntar Poliza</label>
+                        </div>
+                      </form>
+                      <input type="text" id="IdContratoFinalModal2" name="IdContratoFinalModal2" hidden>
+                      <input type="text" id="IdPolizaModal2" name="IdPolizaModal2" hidden>
+                      <button id="ButtonCompletarContratoModal2" class="btn btn-warning mb-2" hidden><i class="bi bi-pencil-square"></i> Completar Contrato</button>
+                      <button id="ButtonEnviarContratoFirmaModal2" class="btn btn-success mb-2" hidden><i class="bi bi-send"></i> Enviar Contrato</button>
+                      <button id="ButtonEnviarSoloPolizaFirmaModal2" class="btn btn-success mb-2" hidden><i class="bi bi-send"></i> Enviar Poliza</button>
+                      <div id="overlay_CardIA3Modal2" style="display: none;">
+                        <div class="card card-annoucement card-round" style="background: #00525b00 !important;">
+                          <div class="card-body d-flex flex-column align-items-center mt--4">
+                            <!-- <script src="https://unpkg.com/@dotlottie/player-component@latest/dist/dotlottie-player.mjs"
+                              type="module"></script>
+                            <dotlottie-player
+                              src="https://lottie.host/ea9df5ac-869e-4e87-b371-3afcd25a252c/fkoal6kwTk.json"
+                              background="transparent" speed="1" style="width: 250px; height: 250px" direction="1"
+                              playMode="normal" loop autoplay></dotlottie-player> -->
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+
+</html>
