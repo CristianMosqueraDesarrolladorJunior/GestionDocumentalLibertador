@@ -72,7 +72,7 @@
       if (!LastGetDataUserResponse || LastGetDataUserResponse[0] !== "Autenticado") {
         return;
       }
-      destroyPendingTableIfAny();
+      //destroyPendingTableIfAny();
       var rol = LastGetDataUserResponse[3];
       var payload = LastGetDataUserResponse[1];
       if (rol === "Gestión Documental") {
@@ -86,9 +86,20 @@
 
     $("#ButtonMenuGestionDocumental").click(function (e) {
       e.preventDefault();
+
+      // 1. Mostrar visualmente el módulo (esto no borra datos)
       showModuloGestionDocumental();
       navActivoGestionDocumental();
-      aplicarVistaGestionDocumentalDesdeCache();
+
+      // 2. LÓGICA CLAVE:
+      // Solo intentamos crear la tabla si NO ha sido inicializada previamente.
+      // Si ya existe, NO hacemos nada más, así la información se mantiene tal cual estaba.
+      if (!$.fn.DataTable.isDataTable("#Table_Clients_Pending")) {
+        console.log("Inicializando tabla por primera vez...");
+        aplicarVistaGestionDocumentalDesdeCache();
+      } else {
+        console.log("La tabla ya existe, manteniendo datos actuales.");
+      }
     });
 
     $("#ButtonMenuRenovaciones").click(function (e) {
@@ -1414,58 +1425,41 @@ window.cancelado = function () {
     //     $('#lock-screen').show();
     //   }
     // }
-
+    // Variables Globales 
+    var DataGestionGlobal = null;
+    var DataRenovacionesGlobal = null;
 
     function ResponseFindUser(Data) {
-      if (!Data) {
-        $("#overlay").hide();
-        $('#lock-screen').show();
-        return;
-      }
       if (Data[0] === "Autenticado") {
         LastGetDataUserResponse = Data;
-        if (Data.length > 4 && Data[4]) {
-          window.RenovacionCorreoMetaInicial = Data[4];
-        } else {
-          window.RenovacionCorreoMetaInicial = { usuariosAsignacion: [], agentesRenovations: [], agentesCorreccionesBI: [] };
-        }
+        RolGlobal = Data[3];
+        $("#UserId").text(Data[2]);
         $('#lock-screen').hide();
-        RolGlobal = Data[3]; // El Rol
-        $("#UserId").text(Data[2]); // El Correo
 
-        // --- CASO 1: GESTIÓN DOCUMENTAL (VIDA) ---
-        if (RolGlobal === "Gestión Documental") {
-          navActivoGestionDocumental();
-          showModuloGestionDocumental();
-          var ReorganizedData = ReorganizeData(Data[1]);
-          CreatePendingTable(ReorganizedData); // Esta función oculta el overlay internamente
-          $("#btnParamCorreoRenovacion").addClass("d-none");
+        // --- PROCESAR GESTIÓN DOCUMENTAL ---
+        if (RolGlobal.includes("Gestión Documental") && Data[1].gestionDocumental) {
+          DataGestionGlobal = Data[1].gestionDocumental; // Guardamos globalmente
+          var ReorganizedData = ReorganizeData(DataGestionGlobal);
+          // Asegúrate que esta función use un ID específico como #tabla-gestion-container
+          CreatePendingTable(ReorganizedData);
         }
 
-        // --- CASO 2: GESTIÓN DOCUMENTAL 2 (BROKERS) ---
-        else if (RolGlobal === "Gestión Documental 2") {
-          navActivoGestionDocumental();
-          showModuloGestionDocumental();
-          CreatePendingTableBrokersInmobiliarias(Data[1]); // Esta función oculta el overlay internamente
-          $("#btnParamCorreoRenovacion").addClass("d-none");
-        }
-
-        // --- CASO 3: ANALISTA RENOVACIONES ---
-        else if (RolGlobal === "Analista Renovaciones") {
-          DataRenovacionesGlobal = Data[1];
-          navActivoRenovaciones();
-          showModuloRenovaciones();
+        // --- PROCESAR RENOVACIONES ---
+        if (RolGlobal.includes("Analista Renovaciones") && Data[1].renovaciones) {
+          DataRenovacionesGlobal = Data[1].renovaciones; // Guardamos globalmente
+          // Esta función debe usar su propio ID como #tabla-renovaciones-container
           UpdateRenovacionesUI();
-          $("#overlay").hide();
-          $("#btnParamCorreoRenovacion").removeClass("d-none");
         }
 
-      } else {
-        LastGetDataUserResponse = null;
-        window.RenovacionCorreoMetaInicial = { usuariosAsignacion: [], agentesRenovations: [], agentesCorreccionesBI: [] };
-        // No autenticado
+        // --- CONTROL DE NAVEGACIÓN INICIAL ---
+        // Solo mostramos un módulo, pero el otro ya está "dibujado" en su div oculto
+        if (RolGlobal.includes("Gestión Documental")) {
+          showModuloGestionDocumental();
+        } else if (RolGlobal.includes("Analista Renovaciones")) {
+          showModuloRenovaciones();
+        }
+
         $("#overlay").hide();
-        $('#lock-screen').show();
       }
     }
 
@@ -1483,9 +1477,12 @@ window.cancelado = function () {
       ]);
     }
 
+    var TablaGestionDoc = null;
+
     function CreatePendingTable(Data) {
       var TotalPending = Data.length;
-      console.log(Data)
+
+      //console.log(Data)
       TableRender = $("#Table_Clients_Pending").DataTable({
         data: Data,
         columns: [
@@ -1500,7 +1497,7 @@ window.cancelado = function () {
             className: "text-center",
             render: function (data) {
               console.log(data)
-              if (data === "Gestión") {
+              if (data === "Gestión" || data === "") {
                 return '<button type="button" onclick="GestionLead()" class="btn btn-black btn-rounded"><span class="btn-label"><i class="bi bi-hand-index-thumb"></i></span>Gestionar</button>';
               }
               return data;
@@ -3755,10 +3752,20 @@ window.cancelado = function () {
   var RolGlobal;
 
   function GestionLead() {
+    // Desactivamos clics previos para no duplicar eventos
     $('#Table_Clients_Pending').off('click', 'tr');
+
+    // Creamos el escuchador de clics en la fila
     $('#Table_Clients_Pending').on('click', 'tr', function () {
-      var data = TableRender.row(this).data();
-      var FechaRadicado = data[0].toString().split(" ")[0];
+      // CAMBIO CLAVE: Obtenemos la instancia de la tabla directamente por su ID
+      var table = $('#Table_Clients_Pending').DataTable();
+      var data = table.row(this).data();
+
+      // Verificamos que existan datos en la fila seleccionada
+      if (!data) return;
+
+      // --- MAPEO DE DATOS ---
+      var FechaRadicado = data[0] ? data[0].toString().split(" ")[0] : "";
       var NombreCliente = data[1];
       var CiudadInmueble = data[2];
       var PhoneCliente = data[24];
@@ -3780,11 +3787,20 @@ window.cancelado = function () {
       var MontoDanos = data[20];
       var ValorAdicionalDanos = data[21];
       var VigenciaPoliza = data[22];
-      var MesesVidencia = parseFloat(VigenciaPoliza.toString().split(" ")[0]);
-      var ValorTotalAsegurarAnual = TotalAsegurar.toString().split("$")[1].toString().split(",").join();
-      ValorTotalAsegurarAnual = parseFloat(ValorTotalAsegurarAnual.replace(/\./g, ""));
+
+      var MesesVidencia = VigenciaPoliza ? parseFloat(VigenciaPoliza.toString().split(" ")[0]) : 1;
+
+      // Cálculo de valores anuales
+      var ValorTotalAsegurarAnual = 0;
+      if (TotalAsegurar) {
+        var rawValue = TotalAsegurar.toString().split("$")[1] || "0";
+        ValorTotalAsegurarAnual = parseFloat(rawValue.toString().split(",").join().replace(/\./g, ""));
+      }
+
       var TotalAnualFormat = "$" + formatearMiles(ValorTotalAsegurarAnual * MesesVidencia);
       var NumSolicitudEstudio = data[25];
+
+      // --- LLENADO DE CAMPOS EN EL MODAL ---
       $("#Ref_Solicitud_Cliente_Modal").text(IdRefCliente);
       $("#Fecha_Solicitud_Cliente_Modal").text(FechaRadicado);
       $("#Destino_Solicitud_Cliente_Modal").text(DestinoInmueble);
@@ -3811,6 +3827,8 @@ window.cancelado = function () {
       $("#Num_Solicitud_Estudio_Modal").text(NumSolicitudEstudio);
       $("#ValorPoliza_Servicios").val(data[19]);
       $("#ValorPoliza_Danos").val(data[21]);
+
+      // Configuración de Flatpickr
       const today = new Date();
       $("#Fecha_Inicio_Modal").flatpickr({
         locale: "es",
@@ -3820,65 +3838,67 @@ window.cancelado = function () {
         defaultDate: FechaInicio,
         disable: [
           function (date) {
-            return (date.getDate() === today.getDate() && date.getMonth() === today.getMonth() && date.getFullYear() === today.getFullYear());
+            return (date.getDate() === today.getDate() && date.getMonth() === today.getMonth() && date.getFullYear() ===
+              today.getFullYear());
           }
         ]
       });
-      if (RolGlobal == "Gestión Documental") {
-        var IdFiles = JSON.parse(data[23]);
-        var Container = $("#ContainerValidationDocs");
-        Container.trigger('destroy.owl.carousel');
-        Container.html('');
-        Container.removeClass('owl-loaded owl-drag');
-        for (var key in IdFiles) {
-          if (IdFiles.hasOwnProperty(key)) {
-            var FileId = IdFiles[key].trim();
-            var IframeSrc = "https://drive.google.com/file/d/" + FileId + "/preview";
-            var TestimonialItem = `
-            <div class="testimonial-item">
-              <div class="testimonial-inner p-5">
-                <div class="testimonial-inner-img mb-4 iframe-container">
-                  <iframe src="${IframeSrc}" class="d-block w-100 custom-iframe embed-responsive-item" allowfullscreen></iframe>
-                </div>
-              </div>
-            </div>`;
-            Container.append(TestimonialItem);
+
+      // --- LÓGICA DE DOCUMENTOS (Gestiòn Documental) ---
+      // CAMBIO CLAVE: Usamos .includes() porque RolGlobal ahora es un Array
+      if (Array.isArray(RolGlobal) ? RolGlobal.includes("Gestión Documental") : RolGlobal == "Gestión Documental") {
+
+        if (data[23]) {
+          try {
+            var IdFiles = JSON.parse(data[23]);
+            var Container = $("#ContainerValidationDocs");
+
+            // Reiniciamos el carrusel
+            Container.trigger('destroy.owl.carousel');
+            Container.html('');
+            Container.removeClass('owl-loaded owl-drag');
+
+            for (var key in IdFiles) {
+              if (IdFiles.hasOwnProperty(key)) {
+                var FileId = IdFiles[key].trim();
+                var IframeSrc = "https://drive.google.com/file/d/" + FileId + "/preview";
+                var TestimonialItem = `
+  <div class="testimonial-item">
+    <div class="testimonial-inner p-5">
+      <div class="testimonial-inner-img mb-4 iframe-container">
+        <iframe src="${IframeSrc}" class="d-block w-100 custom-iframe embed-responsive-item" allowfullscreen></iframe>
+      </div>
+    </div>
+  </div>`;
+                Container.append(TestimonialItem);
+              }
+            }
+
+            // Inicializamos Owl Carousel
+            Container.owlCarousel({
+              autoplay: false,
+              smartSpeed: 1000,
+              center: true,
+              dots: true,
+              loop: true,
+              margin: 25,
+              nav: true,
+              navText: [
+                '<i class="bi bi-caret-left-fill"></i>',
+                '<i class="bi bi-caret-right-fill"></i>'
+              ],
+              responsive: {
+                0: { items: 1 },
+                1200: { items: 1 }
+              }
+            });
+          } catch (e) {
+            console.error("Error procesando JSON de documentos:", e);
           }
         }
-        Container.owlCarousel({
-          autoplay: false,
-          smartSpeed: 1000,
-          center: true,
-          dots: true,
-          loop: true,
-          margin: 25,
-          nav: true,
-          animateOut: 'fadeOut',
-          animateIn: 'fadeIn',
-          navText: [
-            '<i class="bi bi-caret-left-fill"></i>',
-            '<i class="bi bi-caret-right-fill"></i>'
-          ],
-          responsiveClass: true,
-          responsive: {
-            0: {
-              items: 1
-            },
-            576: {
-              items: 1
-            },
-            768: {
-              items: 1
-            },
-            992: {
-              items: 1
-            },
-            1200: {
-              items: 1
-            }
-          }
-        });
       }
+
+      // Mostramos el modal
       $("#overlay_Modal").show();
     });
   }
