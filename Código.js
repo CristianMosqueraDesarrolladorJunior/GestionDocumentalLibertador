@@ -515,112 +515,122 @@ function getMetaCargaCorreoRenovacionCliente_() {
 
 function GetDataUser() {
   var UserMail = Session.getActiveUser().getEmail();
-  Logger.log(UserMail)
   let Status;
+  
+  // Nota: Asegúrate de que 'SheetConsolidado', 'SheetAssignment' y 'Renovaciones' 
+  // estén definidas globalmente o inicialízalas aquí.
   let DataRange = SheetConsolidado.getRange("A2:BC" + SheetConsolidado.getLastRow()).getDisplayValues();
-  let DataRangeUserPending = [];
-  let Rows = SheetAssignment.getRange("A:A").createTextFinder(UserMail).ignoreDiacritics(true).matchEntireCell(true).ignoreDiacritics(true).findPrevious();
 
+  let Rows = SheetAssignment.getRange("A:A")
+    .createTextFinder(UserMail)
+    .matchEntireCell(true)
+    .ignoreDiacritics(true)
+    .findAll();
 
+  if (Rows == null || Rows.length === 0) return ["No Autenticado", "Null"];
 
-  if (Rows != null) {
-    Status = "Autenticado";
-    var metaCorreoRenovCliente = getMetaCargaCorreoRenovacionCliente_();
-    let FilaDataRol = SheetAssignment.getRange("A:A").createTextFinder(UserMail).matchEntireCell(true).ignoreDiacritics(true).findPrevious().getRow();
-    let Rol = SheetAssignment.getRange("C" + FilaDataRol).getDisplayValue();
-    console.log
-    if (Rol == "Gestión Documental") {
-      DataRange.filter(function (DataRange) {
-        let Validation = DataRange.indexOf("Pendiente Validación Documental");
-        let ValidationCorrecion = DataRange.indexOf("Pendiente Corrección Documental");
-        let Validation2 = DataRange[54].indexOf(UserMail);
-        if ((Validation > -1 || ValidationCorrecion > -1) && Validation2 > -1) {
-          DataRangeUserPending.push([DataRange[0], DataRange[4], DataRange[8], DataRange[24], DataRange[26], "Gestión", DataRange[11], DataRange[12], DataRange[1], DataRange[3], DataRange[5], DataRange[9], DataRange[10], DataRange[13], DataRange[14], DataRange[15], DataRange[17], DataRange[19], DataRange[20], DataRange[21], DataRange[22], DataRange[23], DataRange[16], DataRange[45], DataRange[7], DataRange[37]]);
-        }
-      });
-      console.log(DataRangeUserPending)
-      return [Status, DataRangeUserPending, UserMail, Rol, metaCorreoRenovCliente];
-    } else if (Rol == "Gestión Documental 2") {
-      let data = GetDataBrokersYInmobiliarias();
-      return [Status, data, UserMail, Rol, metaCorreoRenovCliente];
+  Status = "Autenticado";
 
+  // Recolectar TODOS los roles del usuario
+  let Roles = Rows.map(row => SheetAssignment.getRange("C" + row.getRow()).getDisplayValue());
+  console.log("Roles encontrados:", Roles);
 
-    } else if (Rol == "Analista Renovaciones") {
-      let dataUpd = Renovaciones.getRange("A2:H" + Renovaciones.getLastRow()).getDisplayValues();
-      let misRegistros = dataUpd.filter(row =>
-        row[2] && row[2].toString().trim().toLowerCase() === UserMail.trim().toLowerCase()
-      );
-      let todosMisLeads = misRegistros.map(row => {
-        const fechaIngreso = row[0];
-        const registroRaw = row[1]; // Col B
-        const nombreAgente = row[2];
-        const etapaFunel = row[3];
-        const estadoGestion = row[4]; // Col E (El estado clave)
-        const dataGestionRaw = row[5]; // Col F
-        const historiaRaw = row[6]; // Col G
+  let resultado = {};
 
-        let historialGestion = [];
-        if (historiaRaw && String(historiaRaw).trim() !== "") {
-          let cleanHistoryString = String(historiaRaw).trim();
-          if (cleanHistoryString.startsWith(")]}',")) {
-            cleanHistoryString = cleanHistoryString.substring(5);
-          }
-          try {
-            let parsed = JSON.parse(cleanHistoryString);
-            historialGestion = Array.isArray(parsed) ? parsed : [parsed];
-          } catch (e) {
-            Logger.log("Error historial: " + e.message);
-            historialGestion = [];
-          }
-        }
+  // ── SECCIÓN GESTIÓN DOCUMENTAL (UNIFICADA) ──────────────────
+  if (Roles.includes("Gestión Documental")) {
+    let leadsInternos = [];
+    
+    // 1. Filtramos los leads internos de la hoja Consolidado
+    DataRange.filter(function(row) {
+      let tieneEstado = row.indexOf("Pendiente Validación Documental") > -1 ||
+                        row.indexOf("Pendiente Corrección Documental") > -1;
+      let esDelUsuario = row[54].indexOf(UserMail) > -1;
+      
+      if (tieneEstado && esDelUsuario) {
+        leadsInternos.push([
+          row[0], row[4], row[8], row[24], row[2], "Gestión",
+          row[11], row[12], row[1], row[3], row[5], row[9],
+          row[10], row[13], row[14], row[15], row[17], row[19],
+          row[20], row[21], row[22], row[23], row[16], row[45],
+          row[7], row[37]
+        ]);
+      }
+    });
 
-        let leadSelect = {};
-        try {
-          let cleanGestion = String(dataGestionRaw).trim().replace(/\bNaN\b/g, "null");
-          leadSelect = JSON.parse(cleanGestion);
-        } catch (e) {
-          leadSelect = { error: "JSON Gestión inválido" };
-        }
-        let dataLead = {};
-        try {
-          let cleanLead = String(registroRaw).trim().replace(/\bNaN\b/g, "null");
-          dataLead = JSON.parse(cleanLead);
-        } catch (e) {
-          dataLead = { error: "JSON Lead inválido" };
-        }
-        return {
-          fechaIngreso: fechaIngreso,
-          leadSelect: leadSelect,
-          dataLead: dataLead, // OJO: Antes lo llamabas strLead o dataLead, lo unifiqué aquí
-          nombreAgente: nombreAgente,
-          etapaFunel: etapaFunel,
-          estadoGestion: estadoGestion,
-          historialGestiones: historialGestion
-        };
-      });
+    // 2. Obtenemos los leads de Brokers llamando a la otra función
+    let leadsBrokers = GetDataBrokersYInmobiliarias();
 
-      let dataAnalitic = todosMisLeads.filter(item => item.estadoGestion === "Enviar a Expedicion" || item.estadoGestion === "Autogestionado" || item.estadoGestion === "Caso Revisado");
-      let dataEspecial = todosMisLeads.filter(item => item.estadoGestion === "Caso Especial");
-      let polizasRenovadas = todosMisLeads.filter(item => item.estadoGestion === "Poliza Renovada" || item.estadoGestion === "Expedido"); // 
-      console.log(`Analitic: ${dataAnalitic.length}, Especial: ${dataEspecial.length}, Renovadas: ${polizasRenovadas.length}`);
-
-      return [
-        Status,
-        {
-          pendientes: dataAnalitic,
-          especiales: dataEspecial,
-          renovadas: polizasRenovadas
-        },
-        UserMail,
-        Rol,
-        metaCorreoRenovCliente
-      ];
-    }
-    return [Status, [], UserMail, Rol, metaCorreoRenovCliente];
-  } else {
-    Status = "No Autenticado";
-    return [Status, "Null"];
+    // 3. Unimos ambos arrays en la misma propiedad del objeto resultado
+    // .concat() junta los dos grupos en una sola lista larga
+    resultado.gestionDocumental = leadsInternos.concat(leadsBrokers);
+    
+    console.log("Total leads (Internos + Brokers):", resultado.gestionDocumental.length);
   }
+
+  // ── SECCIÓN RENOVACIONES ────────────────────────────────────
+  if (Roles.includes("Analista Renovaciones")) {
+    let dataUpd = Renovaciones.getRange("A2:H" + Renovaciones.getLastRow()).getDisplayValues();
+
+    let misRegistros = dataUpd.filter(row =>
+      row[2] && row[2].toString().trim().toLowerCase() === UserMail.trim().toLowerCase()
+    );
+
+    let todosMisLeads = misRegistros.map(row => {
+      const fechaIngreso = row[0];
+      const registroRaw = row[1];
+      const nombreAgente = row[2];
+      const etapaFunel = row[3];
+      const estadoGestion = row[4];
+      const dataGestionRaw = row[5];
+      const historiaRaw = row[6];
+      const emailNotificacionGestionAt = row[7] != null ? String(row[7]).trim() : "";
+
+      let historialGestion = [];
+      if (historiaRaw && String(historiaRaw).trim() !== "") {
+        let cleanHistoryString = String(historiaRaw).trim();
+        if (cleanHistoryString.startsWith(")]}',")) {
+          cleanHistoryString = cleanHistoryString.substring(5);
+        }
+        try {
+          let parsed = JSON.parse(cleanHistoryString);
+          historialGestion = Array.isArray(parsed) ? parsed : [parsed];
+        } catch (e) {
+          historialGestion = [];
+        }
+      }
+
+      let leadSelect = {};
+      try {
+        leadSelect = JSON.parse(String(dataGestionRaw).trim().replace(/\bNaN\b/g, "null"));
+      } catch (e) {
+        leadSelect = { error: "JSON Gestión inválido" };
+      }
+
+      let dataLead = {};
+      try {
+        dataLead = JSON.parse(String(registroRaw).trim().replace(/\bNaN\b/g, "null"));
+      } catch (e) {
+        dataLead = { error: "JSON Lead inválido" };
+      }
+
+      return {
+        fechaIngreso, leadSelect, dataLead,
+        nombreAgente, etapaFunel, estadoGestion,
+        historialGestiones: historialGestion,
+        emailNotificacionGestionAt
+      };
+    });
+
+    resultado.renovaciones = {
+      pendientes: todosMisLeads.filter(i => ["Enviar a Expedicion", "Autogestionado", "Caso Revisado"].includes(i.estadoGestion)),
+      especiales: todosMisLeads.filter(i => i.estadoGestion === "Caso Especial"),
+      renovadas: todosMisLeads.filter(i => ["Poliza Renovada", "Expedido"].includes(i.estadoGestion))
+    };
+  }
+
+  // Retornar Status, el objeto con todos los leads, el mail y los roles
+  return [Status, resultado, UserMail, Roles];
 }
 
 /**
