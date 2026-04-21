@@ -553,7 +553,7 @@ function GetDataUser() {
           row[11], row[12], row[1], row[3], row[5], row[9],
           row[10], row[13], row[14], row[15], row[17], row[19],
           row[20], row[21], row[22], row[23], row[16], row[45],
-          row[7], row[37], "gestiondocumental"
+          row[7], row[37]
         ]);
       }
     });
@@ -629,8 +629,14 @@ function GetDataUser() {
     };
   }
 
-  // Retornar Status, el objeto con todos los leads, el mail y los roles
-  return [Status, resultado, UserMail, Roles];
+  // Quinto elemento: Tabla Asignación Usuarios + cupos colas (una sola lectura; la webapp no debe llamar APIs extra para preview)
+  var metaCorreoRenov = { usuariosAsignacion: [], agentesRenovations: [], agentesCorreccionesBI: [] };
+  try {
+    metaCorreoRenov = getMetaCargaCorreoRenovacionCliente_();
+  } catch (eMeta) {
+    Logger.log("GetDataUser meta correo renovación: " + eMeta);
+  }
+  return [Status, resultado, UserMail, Roles, metaCorreoRenov];
 }
 
 /**
@@ -1982,7 +1988,7 @@ function GetDataBrokersYInmobiliarias() {
       var ValorServicios = formatearAEntero(DataRange[48]);
       var PrimaServicios = formatNumberInput(CalculatePrimaServicios(DataRange[24], ValorServicios).toString());
       Logger.log(PrimaServicios)
-      DataRangeUserPending.push([DataRange[0], DataRange[11], DataRange[19], DataRange[12], DataRange[1], "", DataRange[2], DataRange[24], DataRange[28], DataRange[45], DataRange[10], DataRange[8], DataRange[9], DataRange[13], DataRange[18], DataRange[33], DataRange[26], DataRange[27], DataRange[28], DataRange[25], DataRange[14], DataRange[48], DataRange[49], DataRange[51], DataRange[17], DataRange[56], DataRange[30], DataRange[31], "broker-inmobiliaria"]);
+      DataRangeUserPending.push([DataRange[0], DataRange[11], DataRange[19], DataRange[12], DataRange[1], "", DataRange[2], DataRange[24], DataRange[28], DataRange[45], DataRange[10], DataRange[8], DataRange[9], DataRange[13], DataRange[18], DataRange[33], DataRange[26], DataRange[27], DataRange[28], DataRange[25], DataRange[14], DataRange[48], DataRange[49], DataRange[51], DataRange[17], DataRange[56], DataRange[30], DataRange[31]]);
     }
   });
   return DataRangeUserPending;
@@ -2416,24 +2422,22 @@ function filtrarPorPerfilNorm_(activos, testFn) {
   return r;
 }
 
-function elegirPorCoincidenciaAnalista_(candidatos, emailAnalistaAsignado) {
-  if (!candidatos || !candidatos.length) return null;
-  var e = String(emailAnalistaAsignado || "").toLowerCase().trim().replace(/\s/g, "");
-  if (!e) return candidatos[0];
-  var j;
-  for (j = 0; j < candidatos.length; j++) {
-    if (candidatos[j].correo.toLowerCase() === e) return candidatos[j];
+/** Añade todos los correos válidos de filas de asignación a cc / ccMeta (sin duplicar). */
+function agregarCorreosAsignacionTodos_(rows, cc, ccMeta, rolEtiqueta) {
+  if (!rows || !rows.length) return;
+  var i;
+  for (i = 0; i < rows.length; i++) {
+    var row = rows[i];
+    var em = String(row.correo || "").trim().replace(/\s/g, "");
+    if (!_validEmail_(em) || cc.indexOf(em) !== -1) continue;
+    cc.push(em);
+    ccMeta.push({ nombre: row.perfil || "", correo: em, rol: rolEtiqueta });
   }
-  var local = e.indexOf("@") > 0 ? e.split("@")[0] : "";
-  for (j = 0; j < candidatos.length; j++) {
-    var c = candidatos[j].correo.toLowerCase();
-    if (local && c.split("@")[0] === local) return candidatos[j];
-  }
-  return candidatos[0];
 }
 
 /**
  * Arma Para + CC según segmento leyendo perfiles activos en Tabla Asignación Usuarios.
+ * Todos los usuarios activos que coincidan con cada rol de notificación van en CC (salvo el primero de cuenta comercial, que queda en Para).
  */
 function buildRenovacionRecipientPlan_(segmentoNorm, dataLead, emailAnalistaAsignado) {
   var activos = filasAsignacionActivas_(leerTablaAsignacionUsuarios_());
@@ -2446,6 +2450,10 @@ function buildRenovacionRecipientPlan_(segmentoNorm, dataLead, emailAnalistaAsig
   var cc = [];
   var ccMeta = [];
 
+  if (paraRows.length > 1) {
+    agregarCorreosAsignacionTodos_(paraRows.slice(1), cc, ccMeta, "CC Notificación cuenta comercial");
+  }
+
   if (segmentoNorm === "PROPIETARIO") {
     var ep = _emailPropietario_(dataLead);
     if (ep) {
@@ -2456,49 +2464,21 @@ function buildRenovacionRecipientPlan_(segmentoNorm, dataLead, emailAnalistaAsig
     var segBrokers = filtrarPorPerfilNorm_(activos, function (np) {
       return np.indexOf("segmento") >= 0 && np.indexOf("broker") >= 0;
     });
-    var kb;
-    for (kb = 0; kb < segBrokers.length; kb++) {
-      var emW = String(segBrokers[kb].correo).trim().replace(/\s/g, "");
-      if (_validEmail_(emW) && cc.indexOf(emW) === -1) {
-        cc.push(emW);
-        ccMeta.push({ nombre: segBrokers[kb].perfil || "Notificación segmento Bróker", correo: emW, rol: "CC segmento Bróker" });
-      }
-    }
+    agregarCorreosAsignacionTodos_(segBrokers, cc, ccMeta, "CC Notificación segmento Bróker");
     var ejRows = filtrarPorPerfilNorm_(activos, function (np) {
       if (np.indexOf("inmobiliaria") >= 0) return false;
       return np.indexOf("ejecutivo") >= 0 && np.indexOf("broker") >= 0;
     });
-    var ejPick = elegirPorCoincidenciaAnalista_(ejRows, emailAnalistaAsignado);
-    if (ejPick && _validEmail_(ejPick.correo)) {
-      var emE = String(ejPick.correo).trim().replace(/\s/g, "");
-      if (cc.indexOf(emE) === -1) {
-        cc.push(emE);
-        ccMeta.push({ nombre: ejPick.perfil || "Ejecutivo de cuenta", correo: emE, rol: "CC ejecutivo cuenta Bróker" });
-      }
-    }
+    agregarCorreosAsignacionTodos_(ejRows, cc, ccMeta, "CC Notificación ejecutivo de cuenta Bróker");
   } else if (segmentoNorm === "INMOBILIARIA") {
     var segInm = filtrarPorPerfilNorm_(activos, function (np) {
       return np.indexOf("segmento") >= 0 && np.indexOf("inmobiliaria") >= 0;
     });
-    var ki;
-    for (ki = 0; ki < segInm.length; ki++) {
-      var emM = String(segInm[ki].correo).trim().replace(/\s/g, "");
-      if (_validEmail_(emM) && cc.indexOf(emM) === -1) {
-        cc.push(emM);
-        ccMeta.push({ nombre: segInm[ki].perfil || "Notificación segmento Inmobiliaria", correo: emM, rol: "CC segmento Inmobiliaria" });
-      }
-    }
+    agregarCorreosAsignacionTodos_(segInm, cc, ccMeta, "CC Notificación segmento Inmobiliaria");
     var ejInm = filtrarPorPerfilNorm_(activos, function (np) {
       return np.indexOf("ejecutivo") >= 0 && np.indexOf("inmobiliaria") >= 0;
     });
-    var ejInmPick = elegirPorCoincidenciaAnalista_(ejInm, emailAnalistaAsignado);
-    if (ejInmPick && _validEmail_(ejInmPick.correo)) {
-      var emEI = String(ejInmPick.correo).trim().replace(/\s/g, "");
-      if (cc.indexOf(emEI) === -1) {
-        cc.push(emEI);
-        ccMeta.push({ nombre: ejInmPick.perfil || "Ejecutivo de cuenta", correo: emEI, rol: "CC ejecutivo cuenta Inmobiliaria" });
-      }
-    }
+    agregarCorreosAsignacionTodos_(ejInm, cc, ccMeta, "CC Notificación ejecutivo de cuenta Inmobiliaria");
   }
 
   return { para: para, cc: cc, ccMeta: ccMeta, segmentoNorm: segmentoNorm };
