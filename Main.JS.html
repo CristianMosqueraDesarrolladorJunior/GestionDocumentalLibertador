@@ -1487,6 +1487,53 @@ window.cancelado = function () {
     }
 
     var TablaGestionDoc = null;
+    var TableRenderBrokers = null;
+
+    // Mapa global: guarda los datos originales de cada fila por índice
+    window._pendingRowsMap = {};
+    window._pendingRowsType = {};
+
+    function CreatePendingTable(Data, DataBrokers) {
+      DataBrokers = DataBrokers || [];
+
+      // Limpiar mapa
+      window._pendingRowsMap = {};
+      window._pendingRowsType = {};
+
+      // cambios Marlon
+
+      var unifiedData = [];
+      var idx = 0;
+
+      // Agregar leads internos (ya reorganizados)
+      Data.forEach(function(row) {
+        window._pendingRowsMap[idx] = row;
+        window._pendingRowsType[idx] = "gestiondocumental";
+        unifiedData.push([
+          row[0],                    // Fecha Radicado
+          row[1],                    // Nombre del Cliente
+          row[2],                    // Ciudad
+          row[3] || "",              // Estado
+          "Gestión Documental",      // Origen
+          idx                        // ID interno (para el botón)
+        ]);
+        idx++;
+      });
+
+      // Agregar leads de broker (datos crudos, sin reorganizar)
+      DataBrokers.forEach(function(row) {
+        window._pendingRowsMap[idx] = row;
+        window._pendingRowsType[idx] = "broker-inmobiliaria";
+        unifiedData.push([
+          row[0],                    // Fecha Radicado
+          row[1],                    // Nombre del Cliente
+          row[2],                    // Ciudad
+          row[4] || "",              // Tipo Cliente
+          "Broker / Inmobiliaria",   // Origen
+          idx                        // ID interno (para el botón)
+        ]);
+        idx++;
+      });
 
     function CreatePendingTable(Data) {
       var TotalPending = Data.length;
