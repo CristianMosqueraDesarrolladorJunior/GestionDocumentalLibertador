@@ -72,16 +72,27 @@
       if (!LastGetDataUserResponse || LastGetDataUserResponse[0] !== "Autenticado") {
         return;
       }
-      //destroyPendingTableIfAny();
       var rol = LastGetDataUserResponse[3];
-      var rolesArr = Array.isArray(rol) ? rol : (rol ? [rol] : []);
       var payload = LastGetDataUserResponse[1];
-      if (rolesArr.indexOf("Gestión Documental") !== -1 && payload && payload.gestionDocumental) {
-        CreatePendingTable(ReorganizeData(payload.gestionDocumental));
-      } else if (rolesArr.indexOf("Gestión Documental 2") !== -1 && payload && Array.isArray(payload.gestionDocumental)) {
-        CreatePendingTableBrokersInmobiliarias(payload.gestionDocumental);
+      if (rol === "Gestión Documental" || (Array.isArray(rol) && rol.includes("Gestión Documental"))) {
+        var allData = payload.gestionDocumental || payload;
+        var leadsInternos = [];
+        var leadsBrokers = [];
+        if (Array.isArray(allData)) {
+          allData.forEach(function(row) {
+            var tipo = row[row.length - 1];
+            if (tipo === "broker-inmobiliaria") {
+              leadsBrokers.push(row);
+            } else {
+              leadsInternos.push(row);
+            }
+          });
+        }
+        CreatePendingTable(ReorganizeData(leadsInternos), leadsBrokers);
+      } else if (rol === "Gestión Documental 2") {
+        CreatePendingTable([], payload);
       } else {
-        CreatePendingTable([]);
+        CreatePendingTable([], []);
       }
     }
 
@@ -267,7 +278,6 @@
       $ov.removeClass('is-open').attr('aria-hidden', 'true');
       window._pendingRenovacionDecisionPayload = null;
       window._currentRenovacionCorreoAction = null;
-      window.__renovPreviewStructKey = null;
     }
 
     function openRenovacionCorreoOverlay(tipoAccion) {
@@ -283,7 +293,6 @@
       $('#renovacionCorreoExtra1').val('');
       $('#renovacionCorreoExtra2').val('');
       window._renovacionCorreoAdjuntosUids = [];
-      window.__renovPreviewStructKey = null;
       actualizarResumenAdjuntosCorreoRenovacion();
       $('#renovacionCorreoCandidatosContainer').html('<p class="text-muted small p-3 mb-0">Cargando contactos de la póliza…</p>');
       $('#renovacionCorreoAsignacionCorreccion').addClass('d-none').empty();
@@ -336,7 +345,19 @@
       return String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').trim();
     }
 
+    function syncRenovacionCorreoMetaDesdeLastGetDataUser_() {
+      var L = window.LastGetDataUserResponse;
+      if (!L || L.length < 5 || !L[4] || typeof L[4] !== 'object') return;
+      var d = L[4];
+      window.RenovacionCorreoMetaInicial = {
+        usuariosAsignacion: Array.isArray(d.usuariosAsignacion) ? d.usuariosAsignacion : [],
+        agentesRenovations: Array.isArray(d.agentesRenovations) ? d.agentesRenovations : [],
+        agentesCorreccionesBI: Array.isArray(d.agentesCorreccionesBI) ? d.agentesCorreccionesBI : []
+      };
+    }
+
     function getUsuariosAsignacionCacheRenov() {
+      syncRenovacionCorreoMetaDesdeLastGetDataUser_();
       var m = window.RenovacionCorreoMetaInicial || {};
       return Array.isArray(m.usuariosAsignacion) ? m.usuariosAsignacion : [];
     }
@@ -385,10 +406,6 @@
       return r;
     }
 
-    /**
-     * Añade a cc / ccMeta todos los correos válidos de filas de la hoja de asignación (sin duplicar).
-     * Usado para perfiles de notificación donde pueden existir varias personas activas con el mismo rol.
-     */
     function agregarCorreosAsignRenovTodos(rows, cc, ccMeta, rolEtiqueta) {
       if (!rows || !rows.length) return;
       var i, em, row;
@@ -629,6 +646,7 @@
     }
 
     function asignacionCorreccionDesdeCacheRenov(segNorm) {
+      syncRenovacionCorreoMetaDesdeLastGetDataUser_();
       var meta = window.RenovacionCorreoMetaInicial || {};
       var cola = (segNorm === 'BROKER' || segNorm === 'INMOBILIARIA') ? 'CorreccionesBI' : 'Renovations';
       var list = cola === 'CorreccionesBI' ? (meta.agentesCorreccionesBI || []) : (meta.agentesRenovations || []);
@@ -643,12 +661,6 @@
         emailEnHoja: emailEnHoja,
         agentesDisponibles: list
       };
-    }
-
-    function renovPreviewStructKey_(tipo, seg, poliza, plan, candidatosPre, extrasJoined, selJoined) {
-      var ccPart = (plan.cc || []).slice().map(function (x) { return String(x || '').toLowerCase().trim(); }).sort().join(',');
-      var candPart = (candidatosPre || []).map(function (c) { return String(c.correo || '').toLowerCase().trim(); }).sort().join(',');
-      return [tipo, seg, String(poliza || ''), String(plan.para || '').toLowerCase(), ccPart, candPart, extrasJoined || '', selJoined || ''].join('\x1e');
     }
 
     function aplicarVistaPreviaRenovCorreo(primeraCarga) {
@@ -670,14 +682,8 @@
       if (!primeraCarga && hayCbs) rawSel = getSeleccionadosCorreoRenovacion();
       var usarDefecto = (rawSel === undefined || rawSel === null);
       aplicarSeleccionCandidatosRenov(candidatos, usarDefecto ? [] : rawSel, usarDefecto);
-      var extrasJoined = String($('#renovacionCorreoExtra1').val() || '') + '\x1f' + String($('#renovacionCorreoExtra2').val() || '');
-      var selJoinedLogical = candidatos.filter(function (c) { return c.seleccionado; }).map(function (c) {
-        return String(c.correo || '').toLowerCase().trim();
-      }).sort().join(',');
-      var poliza = String(dataLead.poliza != null ? dataLead.poliza : '');
-      var structKey = renovPreviewStructKey_(tipo, seg, poliza, plan, candidatos, extrasJoined, selJoinedLogical);
-      var soloContenido = !primeraCarga && window.__renovPreviewStructKey === structKey;
       var ccFinal = ccFinalDesdeCandidatosRenov(candidatos, extra, plan.para);
+      var poliza = String(dataLead.poliza != null ? dataLead.poliza : '');
       var fechaStr = new Date().toISOString().slice(0, 16).replace('T', ' ');
       var vars = {
         POLIZA: poliza,
@@ -705,15 +711,6 @@
         $('#renovacionCorreoPara').val(r.para || '');
         $('#renovacionCorreoAsunto').val(r.subject || '');
       }
-      window.__renovPreviewStructKey = structKey;
-
-      if (soloContenido) {
-        $('#renovacionCorreoSegmentoBadge').text(r.segmentoNorm || '—');
-        var iframeOnly = document.getElementById('renovacionCorreoIframe');
-        if (iframeOnly) iframeOnly.srcdoc = r.htmlBody || '<p>Sin contenido</p>';
-        return;
-      }
-
       $('#renovacionCorreoSegmentoBadge').text(r.segmentoNorm || '—');
       renderRenovacionCorreoAsignacionPanel(tipo, r);
       renderRenovacionCorreoCandidatos(r.candidatos || []);
@@ -731,11 +728,8 @@
       var g = ++__renovCorreoPvGen;
       __renovCorreoPvTimer = setTimeout(function () {
         if (g !== __renovCorreoPvGen) return;
-        requestAnimationFrame(function () {
-          if (g !== __renovCorreoPvGen) return;
-          aplicarVistaPreviaRenovCorreo(false);
-        });
-      }, 320);
+        aplicarVistaPreviaRenovCorreo(false);
+      }, 160);
     }
 
     function renderRenovacionCorreoCandidatos(candidatos) {
@@ -1448,9 +1442,22 @@ window.cancelado = function () {
         // --- PROCESAR GESTIÓN DOCUMENTAL ---
         if (RolGlobal.includes("Gestión Documental") && Data[1].gestionDocumental) {
           DataGestionGlobal = Data[1].gestionDocumental; // Guardamos globalmente
-          var ReorganizedData = ReorganizeData(DataGestionGlobal);
-          // Asegúrate que esta función use un ID específico como #tabla-gestion-container
-          CreatePendingTable(ReorganizedData);
+
+          // Separar leads internos y brokers por el marcador de tipo
+          var leadsInternos = [];
+          var leadsBrokers = [];
+          DataGestionGlobal.forEach(function(row) {
+            var tipo = row[row.length - 1];
+            if (tipo === "broker-inmobiliaria") {
+              leadsBrokers.push(row);
+            } else {
+              leadsInternos.push(row);
+            }
+          });
+
+          // Pasar ambos conjuntos a CreatePendingTable
+          var ReorganizedData = ReorganizeData(leadsInternos);
+          CreatePendingTable(ReorganizedData, leadsBrokers);
         }
 
         // --- PROCESAR RENOVACIONES ---
@@ -1535,42 +1542,35 @@ window.cancelado = function () {
         idx++;
       });
 
-    function CreatePendingTable(Data) {
-      var TotalPending = Data.length;
+      var TotalPending = unifiedData.length;
 
-      //console.log(Data)
       TableRender = $("#Table_Clients_Pending").DataTable({
-        data: Data,
+        data: unifiedData,
         columns: [
           { title: "Fecha Radicado" },
           { title: "Nombre del Cliente" },
           { title: "Ciudad" },
-          { title: "Estado" },
-          { title: "Veces Gestión" },
-          { title: "Ref" },
+          { title: "Estado / Tipo" },
+          { title: "Origen" },
           {
             title: "Acción",
             className: "text-center",
-            render: function (data) {
-              console.log(data)
-              if (data === "Gestión" || data === "") {
-                return '<button type="button" onclick="GestionLead()" class="btn btn-black btn-rounded"><span class="btn-label"><i class="bi bi-hand-index-thumb"></i></span>Gestionar</button>';
-              }
-              return data;
+            render: function (data, type, row, meta) {
+              return '<button type="button" onclick="AbrirGestion(' + data + ')" class="btn btn-black btn-rounded"><span class="btn-label"><i class="bi bi-hand-index-thumb"></i></span>Gestionar</button>';
             }
           }
         ],
         order: [],
         lengthMenu: [[5, 10, 25, 50, 100], [5, 10, 25, 50, 100]],
         columnDefs: [
-          { targets: "_all", className: "text-center" },
-          { targets: [7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25], visible: false }
+          { targets: "_all", className: "text-center" }
         ],
         language: {
           emptyTable: "No hay solicitudes pendientes por gestionar."
         }
       });
-      $("#Total_Length_Clients").text(TotalPending)
+
+      $("#Total_Length_Clients").text(TotalPending);
       $.notify({
         icon: 'bi bi-bell-fill',
         title: 'Recordatorio',
@@ -2857,7 +2857,7 @@ window.cancelado = function () {
                     $("#SelectValidarResultIA2").val("");
                     $("#DivSelectValidarResultIA2").hide();
                     $("#DivSelectGestionCasoValidarDocs2").hide();
-                    TableRender.clear().destroy();
+                    if (TableRender) { TableRender.clear().destroy(); TableRender = null; }
                     google.script.run.withSuccessHandler(CreatePendingTableBrokersInmobiliarias).withFailureHandler(function (e) {
                       if (String(e).includes("NetworkError")) {
                         Swal.fire({
@@ -2954,7 +2954,7 @@ window.cancelado = function () {
               $("#DivSelectValidarResultIA2").hide();
               $("#DivSelectGestionCasoValidarDocs2").hide();
               Swal.fire("CASO DESISTIDO", "Se desistio el caso solicitado.", "info")
-              TableRender.clear().destroy();
+              if (TableRender) { TableRender.clear().destroy(); TableRender = null; }
               google.script.run.withSuccessHandler(CreatePendingTableBrokersInmobiliarias).withFailureHandler(function (e) {
                 if (String(e).includes("NetworkError")) {
                   Swal.fire({
@@ -3635,55 +3635,28 @@ window.cancelado = function () {
 
 
     function CreatePendingTableBrokersInmobiliarias(Data) {
-      console.log(Data)
-      var TotalPending = Data.length;
-      TableRender = $("#Table_Clients_Pending").DataTable({
-        data: Data,
-        columns: [
-          { title: "Fecha Radicado" },
-          { title: "Nombre del Cliente" },
-          { title: "Ciudad" },
-          { title: "Contacto" },
-          {
-            title: "Tipo Cliente",
-            render: function (data, type, row) {
-              return '<div class="text-center">' + data + '</div>';
-            }
-          },
-          {
-            title: "Acción",
-            className: "text-center",
-            render: function (data, type, row, meta) {
-              if (data === "") {
-                return '<button type="button" onclick="GestionLead2()" class="btn btn-black btn-rounded"><span class="btn-label"><i class="bi bi-hand-index-thumb"></i></span>Gestionar</button>';
-              }
-              return data;
-            }
+      console.log("Recargando tabla con nuevos datos de broker:", Data.length);
+
+      // Destruir tabla actual si existe
+      if (TableRender && $.fn.DataTable.isDataTable("#Table_Clients_Pending")) {
+        TableRender.clear().destroy();
+        TableRender = null;
+      }
+
+      // Recuperar los leads internos del caché global
+      var leadsInternos = [];
+      if (DataGestionGlobal) {
+        DataGestionGlobal.forEach(function(row) {
+          var tipo = row[row.length - 1];
+          if (tipo !== "broker-inmobiliaria") {
+            leadsInternos.push(row);
           }
-        ],
-        order: [],
-        lengthMenu: [[5, 10, 25, 50, 100], [5, 10, 25, 50, 100]],
-        columnDefs: [
-          { targets: [6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 25, 26, 27], visible: false }
-        ],
-        language: {
-          emptyTable: "No hay solicitudes pendientes por gestionar."
-        }
-      });
-      $("#Total_Length_Clients").text(TotalPending)
-      $.notify({
-        icon: 'bi bi-bell-fill',
-        title: 'Recordatorio',
-        message: '<b>Tienes ' + TotalPending + ' solicitudes pendientes por gestionar.</b>',
-      }, {
-        type: 'warning',
-        placement: {
-          from: "bottom",
-          align: "right"
-        },
-        time: 1000,
-      });
-      $("#overlay").hide();
+        });
+      }
+
+      // Recrear la tabla unificada con internos + nuevos brokers
+      var ReorganizedData = ReorganizeData(leadsInternos);
+      CreatePendingTable(ReorganizedData, Data);
     };
 
     $("#CheckSinIA").change(function () {
@@ -3807,17 +3780,22 @@ window.cancelado = function () {
   //Fin Ready
   var RolGlobal;
 
-  function GestionLead() {
-    // Desactivamos clics previos para no duplicar eventos
-    $('#Table_Clients_Pending').off('click', 'tr');
+  /**
+   * Dispatcher: lee los datos originales del mapa y abre el modal correcto.
+   */
+  function AbrirGestion(rowIdx) {
+    var data = window._pendingRowsMap[rowIdx];
+    var tipo = window._pendingRowsType[rowIdx];
+    if (!data) return;
 
-    // Creamos el escuchador de clics en la fila
-    $('#Table_Clients_Pending').on('click', 'tr', function () {
-      // CAMBIO CLAVE: Obtenemos la instancia de la tabla directamente por su ID
-      var table = $('#Table_Clients_Pending').DataTable();
-      var data = table.row(this).data();
+    if (tipo === "broker-inmobiliaria") {
+      GestionLead2(data);
+    } else {
+      GestionLead(data);
+    }
+  }
 
-      // Verificamos que existan datos en la fila seleccionada
+  function GestionLead(data) {
       if (!data) return;
 
       // --- MAPEO DE DATOS ---
@@ -3900,8 +3878,7 @@ window.cancelado = function () {
         ]
       });
 
-      // --- LÓGICA DE DOCUMENTOS (Gestiòn Documental) ---
-      // CAMBIO CLAVE: Usamos .includes() porque RolGlobal ahora es un Array
+      // --- LÓGICA DE DOCUMENTOS (Gestión Documental) ---
       if (Array.isArray(RolGlobal) ? RolGlobal.includes("Gestión Documental") : RolGlobal == "Gestión Documental") {
 
         if (data[23]) {
@@ -3956,13 +3933,10 @@ window.cancelado = function () {
 
       // Mostramos el modal
       $("#overlay_Modal").show();
-    });
   }
 
-  function GestionLead2() {
-    $('#Table_Clients_Pending').off('click', 'tr');
-    $('#Table_Clients_Pending').on('click', 'tr', function () {
-      var data = TableRender.row(this).data();
+  function GestionLead2(data) {
+      if (!data) return;
       var FechaRadicado = data[0].toString().split(" ")[0];
       var NombreCliente = data[1];
       var CiudadInmueble = data[2];
@@ -4091,7 +4065,6 @@ window.cancelado = function () {
         }
       });
       $("#overlay_Modal2").show();
-    });
   }
 
   var currentFullData = null; 
