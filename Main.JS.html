@@ -1487,43 +1487,83 @@ window.cancelado = function () {
     }
 
     var TablaGestionDoc = null;
+    var TableRenderBrokers = null;
 
-    function CreatePendingTable(Data) {
-      var TotalPending = Data.length;
+    // Mapa global: guarda los datos originales de cada fila por índice
+    window._pendingRowsMap = {};
+    window._pendingRowsType = {};
 
-      //console.log(Data)
+ function CreatePendingTable(Data, DataBrokers) {
+      DataBrokers = DataBrokers || [];
+
+      // Limpiar mapa
+      window._pendingRowsMap = {};
+      window._pendingRowsType = {};
+
+      // cambios Marlon
+
+      var unifiedData = [];
+      var idx = 0;
+
+      // Agregar leads internos (ya reorganizados)
+      Data.forEach(function(row) {
+        window._pendingRowsMap[idx] = row;
+        window._pendingRowsType[idx] = "gestiondocumental";
+        unifiedData.push([
+          row[0],                    // Fecha Radicado
+          row[1],                    // Nombre del Cliente
+          row[2],                    // Ciudad
+          row[3] || "",              // Estado
+          "Gestión Documental",      // Origen
+          idx                        // ID interno (para el botón)
+        ]);
+        idx++;
+      });
+
+      // Agregar leads de broker (datos crudos, sin reorganizar)
+      DataBrokers.forEach(function(row) {
+        window._pendingRowsMap[idx] = row;
+        window._pendingRowsType[idx] = "broker-inmobiliaria";
+        unifiedData.push([
+          row[0],                    // Fecha Radicado
+          row[1],                    // Nombre del Cliente
+          row[2],                    // Ciudad
+          row[4] || "",              // Tipo Cliente
+          "Broker / Inmobiliaria",   // Origen
+          idx                        // ID interno (para el botón)
+        ]);
+        idx++;
+      });
+
+      var TotalPending = unifiedData.length;
+
       TableRender = $("#Table_Clients_Pending").DataTable({
-        data: Data,
+        data: unifiedData,
         columns: [
           { title: "Fecha Radicado" },
           { title: "Nombre del Cliente" },
           { title: "Ciudad" },
-          { title: "Estado" },
-          { title: "Veces Gestión" },
-          { title: "Ref" },
+          { title: "Estado / Tipo" },
+          { title: "Origen" },
           {
             title: "Acción",
             className: "text-center",
-            render: function (data) {
-              console.log(data)
-              if (data === "Gestión" || data === "") {
-                return '<button type="button" onclick="GestionLead()" class="btn btn-black btn-rounded"><span class="btn-label"><i class="bi bi-hand-index-thumb"></i></span>Gestionar</button>';
-              }
-              return data;
+            render: function (data, type, row, meta) {
+              return '<button type="button" onclick="AbrirGestion(' + data + ')" class="btn btn-black btn-rounded"><span class="btn-label"><i class="bi bi-hand-index-thumb"></i></span>Gestionar</button>';
             }
           }
         ],
         order: [],
         lengthMenu: [[5, 10, 25, 50, 100], [5, 10, 25, 50, 100]],
         columnDefs: [
-          { targets: "_all", className: "text-center" },
-          { targets: [7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25], visible: false }
+          { targets: "_all", className: "text-center" }
         ],
         language: {
           emptyTable: "No hay solicitudes pendientes por gestionar."
         }
       });
-      $("#Total_Length_Clients").text(TotalPending)
+
+      $("#Total_Length_Clients").text(TotalPending);
       $.notify({
         icon: 'bi bi-bell-fill',
         title: 'Recordatorio',
@@ -1538,6 +1578,40 @@ window.cancelado = function () {
       });
       $("#overlay").hide();
     };
+
+    $("#ValorCanon_Inmueble").blur(function () {
+      var CurrentValue = $(this).val();
+      var InitialValue = $("#ValorCanon_Validation").val();
+      var Funcionario = $("#Funcionario_Modal").val();
+      var ValueVigencia = parseFloat($("#Vigencia_Modal").val().toString().split(" ")[0]);
+      if (InitialValue != CurrentValue) {
+        CurrentValue = CurrentValue.split("$")[1].toString().split(",").join();
+        CurrentValue = parseFloat(CurrentValue.replace(/\./g, ""));
+        var Admon = $("#ValorAdmon_Inmueble").val().split("$")[1].toString().split(",").join();
+        Admon = parseFloat(Admon.replace(/\./g, ""));
+        var TotalAsegurar = CurrentValue + Admon;
+        $("#ValorTotal_Inmueble").val("$" + formatearMiles(TotalAsegurar));
+        var Response = ValuesCotizacion(CurrentValue, Admon, Funcionario, ValueVigencia);
+        $("#ValorTotal_Solicitud_Cliente_Modal").text("$" + formatearMiles(Response[1]));
+        $("#ValorPoliza_Solicitud_Cliente_Modal").text("$" + formatearMiles(Response[0]));
+        $("#ValorCanon_Validation").val("$" + formatearMiles(CurrentValue));
+        $.notify({
+          icon: 'bi bi-bell-fill',
+          title: 'Recordatorio',
+          message: '<b>Se ha actualizado el valor total de póliza mensual.</b>',
+        }, {
+          type: 'success',
+          placement: {
+            from: "top",
+            align: "center"
+          },
+          time: 1000,
+          z_index: 999999
+        });
+      } else {
+        return;
+      }
+    });
 
     $("#ValorCanon_Inmueble").blur(function () {
       var CurrentValue = $(this).val();
