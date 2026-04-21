@@ -553,7 +553,7 @@ function GetDataUser() {
           row[11], row[12], row[1], row[3], row[5], row[9],
           row[10], row[13], row[14], row[15], row[17], row[19],
           row[20], row[21], row[22], row[23], row[16], row[45],
-          row[7], row[37]
+          row[7], row[37], "gestiondocumental"
         ]);
       }
     });
@@ -1982,7 +1982,7 @@ function GetDataBrokersYInmobiliarias() {
       var ValorServicios = formatearAEntero(DataRange[48]);
       var PrimaServicios = formatNumberInput(CalculatePrimaServicios(DataRange[24], ValorServicios).toString());
       Logger.log(PrimaServicios)
-      DataRangeUserPending.push([DataRange[0], DataRange[11], DataRange[19], DataRange[12], DataRange[1], "", DataRange[2], DataRange[24], DataRange[28], DataRange[45], DataRange[10], DataRange[8], DataRange[9], DataRange[13], DataRange[18], DataRange[33], DataRange[26], DataRange[27], DataRange[28], DataRange[25], DataRange[14], DataRange[48], DataRange[49], DataRange[51], DataRange[17], DataRange[56], DataRange[30], DataRange[31]]);
+      DataRangeUserPending.push([DataRange[0], DataRange[11], DataRange[19], DataRange[12], DataRange[1], "", DataRange[2], DataRange[24], DataRange[28], DataRange[45], DataRange[10], DataRange[8], DataRange[9], DataRange[13], DataRange[18], DataRange[33], DataRange[26], DataRange[27], DataRange[28], DataRange[25], DataRange[14], DataRange[48], DataRange[49], DataRange[51], DataRange[17], DataRange[56], DataRange[30], DataRange[31], "broker-inmobiliaria"]);
     }
   });
   return DataRangeUserPending;
