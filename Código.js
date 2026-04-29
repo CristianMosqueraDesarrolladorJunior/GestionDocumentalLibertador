@@ -629,8 +629,14 @@ function GetDataUser() {
     };
   }
 
-  // Retornar Status, el objeto con todos los leads, el mail y los roles
-  return [Status, resultado, UserMail, Roles];
+  // Quinto elemento: Tabla Asignación Usuarios + cupos colas (la webapp arma Para/CC sin otra llamada)
+  var metaCorreoRenov = { usuariosAsignacion: [], agentesRenovations: [], agentesCorreccionesBI: [] };
+  try {
+    metaCorreoRenov = getMetaCargaCorreoRenovacionCliente_();
+  } catch (eMeta) {
+    Logger.log("GetDataUser meta correo renovación: " + eMeta);
+  }
+  return [Status, resultado, UserMail, Roles, metaCorreoRenov];
 }
 
 /**
@@ -1781,24 +1787,22 @@ function EnviarContratoFirma(IdContrato, Ref, IdPoliza) {
   SheetConsolidado.getRange("AV" + FilaData).setValue(new Date());
 }
 
-function CargarPoliza(form) {
-  var Ref = form["RefCargarPoliza"];
+function CargarPoliza(formData, fileData) {
+  var Ref = formData["RefCargarPoliza"];
   var FilaData = SheetConsolidado.getRange("B:B").createTextFinder(Ref).ignoreDiacritics(true).matchEntireCell(true).findPrevious().getRow();
   var Folder = SheetConsolidado.getRange("AS" + FilaData).getDisplayValue().split("/folders/")[1];
-  var File1 = form["Dato20Contrato"];
-  var TypeFile1 = form["Dato20Contrato"].name;
-  var MimeTypeFile1 = TypeFile1.split(".")[1].toUpperCase();
+
   var NameFile1 = "Poliza-" + Ref;
-  var resource = {
-    title: NameFile1,
-    mimeType: MimeTypeFile1,
-    parents: [{ id: Folder }]
-  };
-  var FileCedula = Drive.Files.insert(resource, File1, {
-    convert: false
-  });
-  var IdPoliza = FileCedula.id;
-  return IdPoliza
+  var blob = Utilities.newBlob(
+    Utilities.base64Decode(fileData.base64),
+    fileData.mimeType,
+    NameFile1
+  );
+
+  var folder = DriveApp.getFolderById(Folder);
+  var file = folder.createFile(blob);
+  var IdPoliza = file.getId();
+  return IdPoliza;
 }
 
 function GenerarContratoFinal(deudores, contratoDatos, Ref) {
@@ -2153,24 +2157,22 @@ function GenerarContratoFinalBrokersYInmobiliarias(deudores, contratoDatos, Ref)
   return { IdContratoFinal: ContratoFinal.getId() }
 }
 
-function CargarPolizaBrokerYInmobiliaria(form) {
-  var Ref = form["RefCargarPolizaModal2"];
+function CargarPolizaBrokerYInmobiliaria(formData, fileData) {
+  var Ref = formData["RefCargarPolizaModal2"];
   var FilaData = SheetConsolidadoBrokersYInmobiliarias.getRange("C:C").createTextFinder(Ref).ignoreDiacritics(true).matchEntireCell(true).findPrevious().getRow();
   var Folder = SheetConsolidadoBrokersYInmobiliarias.getRange("AY" + FilaData).getDisplayValue().split("/folders/")[1];
-  var File1 = form["Dato20ContratoModal2"];
-  var TypeFile1 = form["Dato20ContratoModal2"].name;
-  var MimeTypeFile1 = TypeFile1.split(".")[1].toUpperCase();
+
   var NameFile1 = "Poliza-" + Ref;
-  var resource = {
-    title: NameFile1,
-    mimeType: MimeTypeFile1,
-    parents: [{ id: Folder }]
-  };
-  var FileCedula = Drive.Files.insert(resource, File1, {
-    convert: false
-  });
-  var IdPoliza = FileCedula.id;
-  return IdPoliza
+  var blob = Utilities.newBlob(
+    Utilities.base64Decode(fileData.base64),
+    fileData.mimeType,
+    NameFile1
+  );
+
+  var folder = DriveApp.getFolderById(Folder);
+  var file = folder.createFile(blob);
+  var IdPoliza = file.getId();
+  return IdPoliza;
 }
 
 function EnviarContratoFirmaBrokerYInmobiliaria(IdContrato, Ref, IdPoliza, TipoEnvio) {
@@ -2416,24 +2418,22 @@ function filtrarPorPerfilNorm_(activos, testFn) {
   return r;
 }
 
-function elegirPorCoincidenciaAnalista_(candidatos, emailAnalistaAsignado) {
-  if (!candidatos || !candidatos.length) return null;
-  var e = String(emailAnalistaAsignado || "").toLowerCase().trim().replace(/\s/g, "");
-  if (!e) return candidatos[0];
-  var j;
-  for (j = 0; j < candidatos.length; j++) {
-    if (candidatos[j].correo.toLowerCase() === e) return candidatos[j];
+/** Añade todos los correos válidos de filas de asignación a cc / ccMeta (sin duplicar). */
+function agregarCorreosAsignacionTodos_(rows, cc, ccMeta, rolEtiqueta) {
+  if (!rows || !rows.length) return;
+  var i;
+  for (i = 0; i < rows.length; i++) {
+    var row = rows[i];
+    var em = String(row.correo || "").trim().replace(/\s/g, "");
+    if (!_validEmail_(em) || cc.indexOf(em) !== -1) continue;
+    cc.push(em);
+    ccMeta.push({ nombre: row.perfil || "", correo: em, rol: rolEtiqueta });
   }
-  var local = e.indexOf("@") > 0 ? e.split("@")[0] : "";
-  for (j = 0; j < candidatos.length; j++) {
-    var c = candidatos[j].correo.toLowerCase();
-    if (local && c.split("@")[0] === local) return candidatos[j];
-  }
-  return candidatos[0];
 }
 
 /**
  * Arma Para + CC según segmento leyendo perfiles activos en Tabla Asignación Usuarios.
+ * Todos los activos por rol de notificación van en CC (salvo el primero de cuenta comercial en Para).
  */
 function buildRenovacionRecipientPlan_(segmentoNorm, dataLead, emailAnalistaAsignado) {
   var activos = filasAsignacionActivas_(leerTablaAsignacionUsuarios_());
@@ -2446,6 +2446,10 @@ function buildRenovacionRecipientPlan_(segmentoNorm, dataLead, emailAnalistaAsig
   var cc = [];
   var ccMeta = [];
 
+  if (paraRows.length > 1) {
+    agregarCorreosAsignacionTodos_(paraRows.slice(1), cc, ccMeta, "CC Notificación cuenta comercial");
+  }
+
   if (segmentoNorm === "PROPIETARIO") {
     var ep = _emailPropietario_(dataLead);
     if (ep) {
@@ -2456,49 +2460,21 @@ function buildRenovacionRecipientPlan_(segmentoNorm, dataLead, emailAnalistaAsig
     var segBrokers = filtrarPorPerfilNorm_(activos, function (np) {
       return np.indexOf("segmento") >= 0 && np.indexOf("broker") >= 0;
     });
-    var kb;
-    for (kb = 0; kb < segBrokers.length; kb++) {
-      var emW = String(segBrokers[kb].correo).trim().replace(/\s/g, "");
-      if (_validEmail_(emW) && cc.indexOf(emW) === -1) {
-        cc.push(emW);
-        ccMeta.push({ nombre: segBrokers[kb].perfil || "Notificación segmento Bróker", correo: emW, rol: "CC segmento Bróker" });
-      }
-    }
+    agregarCorreosAsignacionTodos_(segBrokers, cc, ccMeta, "CC Notificación segmento Bróker");
     var ejRows = filtrarPorPerfilNorm_(activos, function (np) {
       if (np.indexOf("inmobiliaria") >= 0) return false;
       return np.indexOf("ejecutivo") >= 0 && np.indexOf("broker") >= 0;
     });
-    var ejPick = elegirPorCoincidenciaAnalista_(ejRows, emailAnalistaAsignado);
-    if (ejPick && _validEmail_(ejPick.correo)) {
-      var emE = String(ejPick.correo).trim().replace(/\s/g, "");
-      if (cc.indexOf(emE) === -1) {
-        cc.push(emE);
-        ccMeta.push({ nombre: ejPick.perfil || "Ejecutivo de cuenta", correo: emE, rol: "CC ejecutivo cuenta Bróker" });
-      }
-    }
+    agregarCorreosAsignacionTodos_(ejRows, cc, ccMeta, "CC Notificación ejecutivo de cuenta Bróker");
   } else if (segmentoNorm === "INMOBILIARIA") {
     var segInm = filtrarPorPerfilNorm_(activos, function (np) {
       return np.indexOf("segmento") >= 0 && np.indexOf("inmobiliaria") >= 0;
     });
-    var ki;
-    for (ki = 0; ki < segInm.length; ki++) {
-      var emM = String(segInm[ki].correo).trim().replace(/\s/g, "");
-      if (_validEmail_(emM) && cc.indexOf(emM) === -1) {
-        cc.push(emM);
-        ccMeta.push({ nombre: segInm[ki].perfil || "Notificación segmento Inmobiliaria", correo: emM, rol: "CC segmento Inmobiliaria" });
-      }
-    }
+    agregarCorreosAsignacionTodos_(segInm, cc, ccMeta, "CC Notificación segmento Inmobiliaria");
     var ejInm = filtrarPorPerfilNorm_(activos, function (np) {
       return np.indexOf("ejecutivo") >= 0 && np.indexOf("inmobiliaria") >= 0;
     });
-    var ejInmPick = elegirPorCoincidenciaAnalista_(ejInm, emailAnalistaAsignado);
-    if (ejInmPick && _validEmail_(ejInmPick.correo)) {
-      var emEI = String(ejInmPick.correo).trim().replace(/\s/g, "");
-      if (cc.indexOf(emEI) === -1) {
-        cc.push(emEI);
-        ccMeta.push({ nombre: ejInmPick.perfil || "Ejecutivo de cuenta", correo: emEI, rol: "CC ejecutivo cuenta Inmobiliaria" });
-      }
-    }
+    agregarCorreosAsignacionTodos_(ejInm, cc, ccMeta, "CC Notificación ejecutivo de cuenta Inmobiliaria");
   }
 
   return { para: para, cc: cc, ccMeta: ccMeta, segmentoNorm: segmentoNorm };

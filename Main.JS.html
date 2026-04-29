@@ -345,7 +345,19 @@
       return String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').trim();
     }
 
+    function syncRenovacionCorreoMetaDesdeLastGetDataUser_() {
+      var L = window.LastGetDataUserResponse;
+      if (!L || L.length < 5 || !L[4] || typeof L[4] !== 'object') return;
+      var d = L[4];
+      window.RenovacionCorreoMetaInicial = {
+        usuariosAsignacion: Array.isArray(d.usuariosAsignacion) ? d.usuariosAsignacion : [],
+        agentesRenovations: Array.isArray(d.agentesRenovations) ? d.agentesRenovations : [],
+        agentesCorreccionesBI: Array.isArray(d.agentesCorreccionesBI) ? d.agentesCorreccionesBI : []
+      };
+    }
+
     function getUsuariosAsignacionCacheRenov() {
+      syncRenovacionCorreoMetaDesdeLastGetDataUser_();
       var m = window.RenovacionCorreoMetaInicial || {};
       return Array.isArray(m.usuariosAsignacion) ? m.usuariosAsignacion : [];
     }
@@ -394,20 +406,16 @@
       return r;
     }
 
-    function elegirUsuarioAnalistaRenov(candidatos, emailAnalistaAsignado) {
-      if (!candidatos || !candidatos.length) return null;
-      var e = String(emailAnalistaAsignado || '').toLowerCase().trim().replace(/\s/g, '');
-      if (!e) return candidatos[0];
-      var j, c;
-      for (j = 0; j < candidatos.length; j++) {
-        if (candidatos[j].correo.toLowerCase() === e) return candidatos[j];
+    function agregarCorreosAsignRenovTodos(rows, cc, ccMeta, rolEtiqueta) {
+      if (!rows || !rows.length) return;
+      var i, em, row;
+      for (i = 0; i < rows.length; i++) {
+        row = rows[i];
+        em = String(row.correo || '').trim().replace(/\s/g, '');
+        if (!validEmailRenovLocal(em) || cc.indexOf(em) !== -1) continue;
+        cc.push(em);
+        ccMeta.push({ nombre: row.perfil || '', correo: em, rol: rolEtiqueta });
       }
-      var local = e.indexOf('@') > 0 ? e.split('@')[0] : '';
-      for (j = 0; j < candidatos.length; j++) {
-        c = candidatos[j].correo.toLowerCase();
-        if (local && c.split('@')[0] === local) return candidatos[j];
-      }
-      return candidatos[0];
     }
 
     function buildRecipientPlanRenovLocal(segmentoNorm, dataLead, emailAnalistaAsignado) {
@@ -419,6 +427,9 @@
         : 'renovacionesarrendamiento@segurosbolivar.com';
       var cc = [];
       var ccMeta = [];
+      if (paraRows.length > 1) {
+        agregarCorreosAsignRenovTodos(paraRows.slice(1), cc, ccMeta, 'CC Notificación cuenta comercial');
+      }
       if (segmentoNorm === 'PROPIETARIO') {
         var ep = emailPropietarioRenovLocal(dataLead);
         if (ep) {
@@ -429,49 +440,21 @@
         var segBrokers = filtrarPerfilAsignRenov(activos, function (np) {
           return np.indexOf('segmento') >= 0 && np.indexOf('broker') >= 0;
         });
-        var kb, emW;
-        for (kb = 0; kb < segBrokers.length; kb++) {
-          emW = String(segBrokers[kb].correo).trim().replace(/\s/g, '');
-          if (validEmailRenovLocal(emW) && cc.indexOf(emW) === -1) {
-            cc.push(emW);
-            ccMeta.push({ nombre: segBrokers[kb].perfil || 'Notificación segmento Bróker', correo: emW, rol: 'CC segmento Bróker' });
-          }
-        }
+        agregarCorreosAsignRenovTodos(segBrokers, cc, ccMeta, 'CC Notificación segmento Bróker');
         var ejRows = filtrarPerfilAsignRenov(activos, function (np) {
           if (np.indexOf('inmobiliaria') >= 0) return false;
           return np.indexOf('ejecutivo') >= 0 && np.indexOf('broker') >= 0;
         });
-        var ejPick = elegirUsuarioAnalistaRenov(ejRows, emailAnalistaAsignado);
-        if (ejPick && validEmailRenovLocal(ejPick.correo)) {
-          var emE = String(ejPick.correo).trim().replace(/\s/g, '');
-          if (cc.indexOf(emE) === -1) {
-            cc.push(emE);
-            ccMeta.push({ nombre: ejPick.perfil || 'Ejecutivo de cuenta', correo: emE, rol: 'CC ejecutivo cuenta Bróker' });
-          }
-        }
+        agregarCorreosAsignRenovTodos(ejRows, cc, ccMeta, 'CC Notificación ejecutivo de cuenta Bróker');
       } else if (segmentoNorm === 'INMOBILIARIA') {
         var segInm = filtrarPerfilAsignRenov(activos, function (np) {
           return np.indexOf('segmento') >= 0 && np.indexOf('inmobiliaria') >= 0;
         });
-        var ki, emM;
-        for (ki = 0; ki < segInm.length; ki++) {
-          emM = String(segInm[ki].correo).trim().replace(/\s/g, '');
-          if (validEmailRenovLocal(emM) && cc.indexOf(emM) === -1) {
-            cc.push(emM);
-            ccMeta.push({ nombre: segInm[ki].perfil || 'Notificación segmento Inmobiliaria', correo: emM, rol: 'CC segmento Inmobiliaria' });
-          }
-        }
+        agregarCorreosAsignRenovTodos(segInm, cc, ccMeta, 'CC Notificación segmento Inmobiliaria');
         var ejInm = filtrarPerfilAsignRenov(activos, function (np) {
           return np.indexOf('ejecutivo') >= 0 && np.indexOf('inmobiliaria') >= 0;
         });
-        var ejInmPick = elegirUsuarioAnalistaRenov(ejInm, emailAnalistaAsignado);
-        if (ejInmPick && validEmailRenovLocal(ejInmPick.correo)) {
-          var emEI = String(ejInmPick.correo).trim().replace(/\s/g, '');
-          if (cc.indexOf(emEI) === -1) {
-            cc.push(emEI);
-            ccMeta.push({ nombre: ejInmPick.perfil || 'Ejecutivo de cuenta', correo: emEI, rol: 'CC ejecutivo cuenta Inmobiliaria' });
-          }
-        }
+        agregarCorreosAsignRenovTodos(ejInm, cc, ccMeta, 'CC Notificación ejecutivo de cuenta Inmobiliaria');
       }
       return { para: para, cc: cc, ccMeta: ccMeta, segmentoNorm: segmentoNorm };
     }
@@ -663,6 +646,7 @@
     }
 
     function asignacionCorreccionDesdeCacheRenov(segNorm) {
+      syncRenovacionCorreoMetaDesdeLastGetDataUser_();
       var meta = window.RenovacionCorreoMetaInicial || {};
       var cola = (segNorm === 'BROKER' || segNorm === 'INMOBILIARIA') ? 'CorreccionesBI' : 'Renovations';
       var list = cola === 'CorreccionesBI' ? (meta.agentesCorreccionesBI || []) : (meta.agentesRenovations || []);
@@ -1444,8 +1428,27 @@ window.cancelado = function () {
     function ResponseFindUser(Data) {
       if (Data[0] === "Autenticado") {
         LastGetDataUserResponse = Data;
+        if (Data.length > 4 && Data[4] && typeof Data[4] === 'object') {
+          window.RenovacionCorreoMetaInicial = {
+            usuariosAsignacion: Array.isArray(Data[4].usuariosAsignacion) ? Data[4].usuariosAsignacion : [],
+            agentesRenovations: Array.isArray(Data[4].agentesRenovations) ? Data[4].agentesRenovations : [],
+            agentesCorreccionesBI: Array.isArray(Data[4].agentesCorreccionesBI) ? Data[4].agentesCorreccionesBI : []
+          };
+        }
         RolGlobal = Data[3];
-        $("#UserId").text(Data[2]);
+        var userEmail = Data[2];
+        $("#UserId").text(userEmail);
+
+        // Generar iniciales del email (antes del @)
+        var localPart = userEmail.split("@")[0] || "";
+        var parts = localPart.split(".");
+        var initials = parts.map(function(p) { return p.charAt(0).toUpperCase(); }).join("").substring(0, 2);
+        $("#UserInitials").text(initials);
+
+        // Mostrar rol
+        var rolDisplay = Array.isArray(RolGlobal) ? RolGlobal.join(" · ") : (RolGlobal || "");
+        $("#UserRolBadge").text(rolDisplay);
+
         $('#lock-screen').hide();
 
         // --- PROCESAR GESTIÓN DOCUMENTAL ---
@@ -1530,7 +1533,7 @@ window.cancelado = function () {
           row[1],                    // Nombre del Cliente
           row[2],                    // Ciudad
           row[3] || "",              // Estado
-          "Gestión Documental",      // Origen
+          "Propietario",             // Origen
           idx                        // ID interno (para el botón)
         ]);
         idx++;
@@ -1544,8 +1547,8 @@ window.cancelado = function () {
           row[0],                    // Fecha Radicado
           row[1],                    // Nombre del Cliente
           row[2],                    // Ciudad
-          row[4] || "",              // Tipo Cliente
-          "Broker / Inmobiliaria",   // Origen
+          "Pendiente Validación Documental" || "",              // Tipo Cliente
+          row[4],                    // Origen
           idx                        // ID interno (para el botón)
         ]);
         idx++;
@@ -3055,6 +3058,7 @@ window.cancelado = function () {
         reverseButtons: true
       }).then((result) => {
         if (result.isConfirmed) {
+          $("#ButtonEnviarContratoFirma").prop("disabled", true);
           var RefCliente = $("#Ref_Solicitud_Cliente_Modal").text();
           $("#RefCargarPoliza").val(RefCliente)
           $("#FormCargarPoliza").submit();
@@ -3065,30 +3069,47 @@ window.cancelado = function () {
     });
 
     $("#FormCargarPoliza").submit(function (e) {
-      e.preventDefault(e);
+      e.preventDefault();
       $("#overlay").show();
-      google.script.run.withSuccessHandler(function (Result) {
-        FinalizarValidacion(Result);
-      }).withFailureHandler(function (e) {
-        if (String(e).includes("NetworkError")) {
-          Swal.fire({
-            title: 'Error de Conexión',
-            icon: 'error',
-            html: 'Verifica la conexión a internet.',
-            showCancelButton: false,
-            confirmButtonText: "Cerrar"//&nbsp;<i class="bi bi-x-circle-fill"></i>,
-          });
-        } else {
-          Swal.fire({
-            title: 'Error de Ejecución',
-            icon: 'error',
-            html: 'Presentamos fallas en este momento, estamos trabajando para solucionarlo lo más pronto posible.',
-            showCancelButton: false,
-            confirmButtonText: "Cerrar"//&nbsp;<i class="bi bi-x-circle-fill"></i>,
-          });
-        }
+      const form = this;
+      const fileInput = document.getElementById('Dato20Contrato');
+      if (fileInput.files.length === 0) {
+        Swal.fire("Error", "No se ha seleccionado ningún archivo.", "error");
         $("#overlay").hide();
-      }).CargarPoliza(this);
+        return;
+      }
+      const file = fileInput.files[0];
+      const reader = new FileReader();
+      const formData = {
+        RefCargarPoliza: $("#RefCargarPoliza").val()
+      };
+
+      reader.onload = function (e) {
+        const fileData = {
+          base64: e.target.result.split(',')[1],
+          mimeType: file.type,
+          name: file.name
+        };
+
+        google.script.run
+          .withSuccessHandler(function (Result) {
+            $("#overlay").hide();
+            FinalizarValidacion(Result);
+          })
+          .withFailureHandler(function (e) {
+            $("#overlay").hide();
+            $("#ButtonEnviarContratoFirma").prop("disabled", false);
+            Swal.fire("Error de Ejecución", "Hubo un problema al subir el archivo: " + e, "error");
+          })
+          .CargarPoliza(formData, fileData);
+      };
+
+      reader.onerror = function () {
+        $("#overlay").hide();
+        $("#ButtonEnviarContratoFirma").prop("disabled", false);
+        Swal.fire("Error", "No se pudo leer el archivo localmente.", "error");
+      };
+      reader.readAsDataURL(file);
     });
 
     function FinalizarValidacion(IdFilePoliza) {
@@ -3219,28 +3240,64 @@ window.cancelado = function () {
     $("#FormCargarPolizaModal2").submit(function (e) {
       e.preventDefault(e);
       $("#overlay").show();
-      google.script.run.withSuccessHandler(function (Result) {
-        FinalizarValidacionBrokersYInmobiliarias(Result);
-      }).withFailureHandler(function (e) {
-        if (String(e).includes("NetworkError")) {
-          Swal.fire({
-            title: 'Error de Conexión',
-            icon: 'error',
-            html: 'Verifica la conexión a internet.',
-            showCancelButton: false,
-            confirmButtonText: "Cerrar"//&nbsp;<i class="bi bi-x-circle-fill"></i>,
-          });
-        } else {
-          Swal.fire({
-            title: 'Error de Ejecución',
-            icon: 'error',
-            html: 'Presentamos fallas en este momento, estamos trabajando para solucionarlo lo más pronto posible.',
-            showCancelButton: false,
-            confirmButtonText: "Cerrar"//&nbsp;<i class="bi bi-x-circle-fill"></i>,
-          });
-        }
+      $("#ButtonEnviarContratoFirmaModal2").prop("disabled", true);
+      $("#ButtonEnviarSoloPolizaFirmaModal2").prop("disabled", true);
+
+      var fileInput = document.getElementById('Dato20ContratoModal2');
+      if (fileInput.files.length === 0) {
+        Swal.fire("Error", "No se ha seleccionado ningún archivo.", "error");
         $("#overlay").hide();
-      }).CargarPolizaBrokerYInmobiliaria(this);
+        $("#ButtonEnviarContratoFirmaModal2").prop("disabled", false);
+        $("#ButtonEnviarSoloPolizaFirmaModal2").prop("disabled", false);
+        return;
+      }
+
+      var file = fileInput.files[0];
+      var reader = new FileReader();
+      var formData = {
+        RefCargarPolizaModal2: $("#RefCargarPolizaModal2").val()
+      };
+
+      reader.onload = function (ev) {
+        var fileData = {
+          base64: ev.target.result.split(',')[1],
+          mimeType: file.type,
+          name: file.name
+        };
+
+        google.script.run.withSuccessHandler(function (Result) {
+          FinalizarValidacionBrokersYInmobiliarias(Result);
+        }).withFailureHandler(function (e) {
+          if (String(e).includes("NetworkError")) {
+            Swal.fire({
+              title: 'Error de Conexión',
+              icon: 'error',
+              html: 'Verifica la conexión a internet.',
+              showCancelButton: false,
+              confirmButtonText: "Cerrar"
+            });
+          } else {
+            Swal.fire({
+              title: 'Error de Ejecución',
+              icon: 'error',
+              html: 'Presentamos fallas en este momento, estamos trabajando para solucionarlo lo más pronto posible.',
+              showCancelButton: false,
+              confirmButtonText: "Cerrar"
+            });
+          }
+          $("#overlay").hide();
+          $("#ButtonEnviarContratoFirmaModal2").prop("disabled", false);
+          $("#ButtonEnviarSoloPolizaFirmaModal2").prop("disabled", false);
+        }).CargarPolizaBrokerYInmobiliaria(formData, fileData);
+      };
+
+      reader.onerror = function () {
+        $("#overlay").hide();
+        $("#ButtonEnviarContratoFirmaModal2").prop("disabled", false);
+        $("#ButtonEnviarSoloPolizaFirmaModal2").prop("disabled", false);
+        Swal.fire("Error", "No se pudo leer el archivo localmente.", "error");
+      };
+      reader.readAsDataURL(file);
     });
 
     function FinalizarValidacionBrokersYInmobiliarias(IdFilePoliza) {
@@ -5460,8 +5517,12 @@ window.ReloadRenovacionesTable = function() {
             if (Data && Data[0] === "Autenticado") {
 
                 window.LastGetDataUserResponse = Data;
-                if (Data.length > 4 && Data[4]) {
-                  window.RenovacionCorreoMetaInicial = Data[4];
+                if (Data.length > 4 && Data[4] && typeof Data[4] === 'object') {
+                  window.RenovacionCorreoMetaInicial = {
+                    usuariosAsignacion: Array.isArray(Data[4].usuariosAsignacion) ? Data[4].usuariosAsignacion : [],
+                    agentesRenovations: Array.isArray(Data[4].agentesRenovations) ? Data[4].agentesRenovations : [],
+                    agentesCorreccionesBI: Array.isArray(Data[4].agentesCorreccionesBI) ? Data[4].agentesCorreccionesBI : []
+                  };
                 }
 
                 // 1. Actualizar la variable Global con la nueva data fresca de BD
