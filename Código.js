@@ -19,7 +19,7 @@ const DataWereHouse = SpreadsheetApp.openById("1_Hi5iunWuSrsT4V2ApWKIka6sdYyz7Mo
 const DataGestion = DataWereHouse.getSheetByName("Gestion");
 /** Parametrización correos renovación (US-01): misma hoja WareHouse que Gestion / CRM Leads */
 const SHEET_CORREO_RENOV_PARAM = "Correo_Renovacion_Param";
-/** Columna I en hoja JSON renovaciones: historial de envíos de correo (US marca envío) */
+/** Columna I en hoja JSON refnovaciones: historial de envíos de correo (US marca envío) */
 const COL_LOG_CORREO_RENOV = 9;
 
 
@@ -29,10 +29,10 @@ function resolveClientReference(policyNumber) {
 
   try {
 
-    let finder = Espejo.getRange("BE2:BE").createTextFinder(cleanPolicy).matchEntireCell(true).findNext();
+    let finder = SheetConsolidado.getRange("BE2:BE").createTextFinder(cleanPolicy).matchEntireCell(true).findNext();
 
     if (finder) {
-      let ref = Espejo.getRange(finder.getRow(), 2).getValue(); 
+      let ref = SheetConsolidado.getRange(finder.getRow(), 2).getValue(); 
       return { found: true, ref: String(ref).trim(), source: 'Espejo' };
     }
     let finderAnt = PolizasAntiguas.getRange("C2:C").createTextFinder(cleanPolicy).matchEntireCell(true).findNext();
@@ -54,7 +54,7 @@ function resolveClientReference(policyNumber) {
 function findDriveFolderByRef(ref) {
   if (!ref) return null;
   const rootId = "1e05FPKAfrRnqBbUpOF1JP9ostCg2TsjC"; 
-  const rootFolder = DriveApp.getFolderById(rootId);
+  const rootFolder = retry(() =>DriveApp.getFolderById(rootId));
 
   const iter = rootFolder.searchFolders(`title contains '${ref}' and trashed = false`);
 
@@ -147,7 +147,7 @@ function getPolicyFiles(policyRef) {
 
 function buscarCarpetaYGuardarArchivos(archivosBase64, datos, ref) {
   const rootId = "1e05FPKAfrRnqBbUpOF1JP9ostCg2TsjC";
-  const rootFolder = DriveApp.getFolderById(rootId);
+  const rootFolder = retry(() =>DriveApp.getFolderById(rootId));
   const urlsNuevas = {};
 
   const iteradorCandidatos = rootFolder.searchFolders(`title contains '${ref}' and trashed = false`);
@@ -246,13 +246,13 @@ function extraerIdGoogleDrive(url) {
 
 function obtenerCarpetaRenovacionPorPoliza(poliza, documento, asegurado) {
   const rootId = "1e05FPKAfrRnqBbUpOF1JP9ostCg2TsjC"; // TU ID RAÍZ
-  const rootFolder = DriveApp.getFolderById(rootId);
+  const rootFolder = retry(() => DriveApp.getFolderById(rootId));
   let ref = null;
-  if (Espejo) {
-    let finderEspejo = Espejo.getRange("BE2:BE").createTextFinder(poliza).matchEntireCell(true).findNext();
+  if (SheetConsolidado) {
+    let finderEspejo = SheetConsolidado.getRange("BE2:BE").createTextFinder(poliza).matchEntireCell(true).findNext();
     if (finderEspejo) {
       let row = finderEspejo.getRow();
-      ref = Espejo.getRange(row, 2).getDisplayValue();
+      ref = SheetConsolidado.getRange(row, 2).getDisplayValue();
       console.log(`Referencia encontrada en Espejo para póliza ${poliza}: ${ref}`);
     }
   }
@@ -367,7 +367,7 @@ function processAnalystDecision(payload) {
         try {
           let fileId = extraerIdGoogleDrive(meta.url);
           if (fileId) {
-            const originalFile = DriveApp.getFileById(fileId);
+            const originalFile = retry(() =>DriveApp.getFileById(fileId));
             const prefijo = mapaNombres[key] || key.toUpperCase();
             const nombreOriginal = originalFile.getName();
             const ext = nombreOriginal.includes('.') ? nombreOriginal.split('.').pop() : 'pdf';
@@ -801,13 +801,13 @@ function ModelValidationCTL(Ref) {
   if (TipoCliente == "Persona natural") {
     var IdFiles = SheetConsolidado.getRange("AT" + FilaData).getDisplayValue();
     IdFiles = JSON.parse(IdFiles);
-    var FileIdCTL = DriveApp.getFileById(IdFiles.idCTL);
+    var FileIdCTL = retry(() =>DriveApp.getFileById(IdFiles.idCTL));
     var FileBase64CTL = Utilities.base64Encode(FileIdCTL.getBlob().getBytes());
     var FileTypeCTL = FileIdCTL.getMimeType();
-    var FileIdCedula = DriveApp.getFileById(IdFiles.idCedula);
+    var FileIdCedula =retry(() => DriveApp.getFileById(IdFiles.idCedula));
     var FileBase64Cedula = Utilities.base64Encode(FileIdCedula.getBlob().getBytes());
     var FileTypeCedula = FileIdCedula.getMimeType();
-    var FileIdSarlaft = DriveApp.getFileById(IdFiles.idSARLAFT);
+    var FileIdSarlaft = retry(() =>DriveApp.getFileById(IdFiles.idSARLAFT));
     var FileBase64Sarlaft = Utilities.base64Encode(FileIdSarlaft.getBlob().getBytes());
     var FileTypeSarlaft = FileIdSarlaft.getMimeType();
     var service = getService();
@@ -984,16 +984,16 @@ function ModelValidationCTL(Ref) {
   } else {
     var IdFiles = SheetConsolidado.getRange("AT" + FilaData).getDisplayValue();
     IdFiles = JSON.parse(IdFiles);
-    var FileIdCTL = DriveApp.getFileById(IdFiles.idCTL);
+    var FileIdCTL = retry(() =>DriveApp.getFileById(IdFiles.idCTL));
     var FileBase64CTL = Utilities.base64Encode(FileIdCTL.getBlob().getBytes());
     var FileTypeCTL = FileIdCTL.getMimeType();
-    var FileIdCedula = DriveApp.getFileById(IdFiles.idCedula);
+    var FileIdCedula = retry(() =>DriveApp.getFileById(IdFiles.idCedula));
     var FileBase64Cedula = Utilities.base64Encode(FileIdCedula.getBlob().getBytes());
     var FileTypeCedula = FileIdCedula.getMimeType();
-    var FileIdRut = DriveApp.getFileById(IdFiles.idRUT);
+    var FileIdRut = retry(() =>DriveApp.getFileById(IdFiles.idRUT));
     var FileBase64Rut = Utilities.base64Encode(FileIdRut.getBlob().getBytes());
     var FileTypeRut = FileIdRut.getMimeType();
-    var FileIdRepLegal = DriveApp.getFileById(IdFiles.idCERTLEGAL);
+    var FileIdRepLegal = retry(() =>DriveApp.getFileById(IdFiles.idCERTLEGAL));
     var FileBase64RepLegal = Utilities.base64Encode(FileIdRepLegal.getBlob().getBytes());
     var FileTypeRepLegal = FileIdRepLegal.getMimeType();
     var service = getService();
@@ -1225,10 +1225,10 @@ function ModelValidationCTL2(Ref) {
     }
     if (idCtlFinal != "" && idFileCedula != "") {
       Logger.log(idCtlFinal)
-      var FileIdCTL = DriveApp.getFileById(idCtlFinal);
+      var FileIdCTL = retry(() =>DriveApp.getFileById(idCtlFinal));
       var FileBase64CTL = Utilities.base64Encode(FileIdCTL.getBlob().getBytes());
       var FileTypeCTL = FileIdCTL.getMimeType();
-      var FileIdCedula = DriveApp.getFileById(idCedulaFinal);
+      var FileIdCedula =retry(() => DriveApp.getFileById(idCedulaFinal));
       var FileBase64Cedula = Utilities.base64Encode(FileIdCedula.getBlob().getBytes());
       var FileTypeCedula = FileIdCedula.getMimeType();
       var service = getService();
@@ -1421,16 +1421,16 @@ function ModelValidationCTL2(Ref) {
       }
     }
     if (idCtlFinal != "" && idCedulaFinal != "" && idCertificacionFinal != "" && idRutFinal != "") {
-      var FileIdCTL = DriveApp.getFileById(idCtlFinal);
+      var FileIdCTL =retry(() => DriveApp.getFileById(idCtlFinal));
       var FileBase64CTL = Utilities.base64Encode(FileIdCTL.getBlob().getBytes());
       var FileTypeCTL = FileIdCTL.getMimeType();
-      var FileIdCedula = DriveApp.getFileById(idCedulaFinal);
+      var FileIdCedula = retry(() =>DriveApp.getFileById(idCedulaFinal));
       var FileBase64Cedula = Utilities.base64Encode(FileIdCedula.getBlob().getBytes());
       var FileTypeCedula = FileIdCedula.getMimeType();
-      var FileIdRut = DriveApp.getFileById(idRutFinal);
+      var FileIdRut = retry(() =>DriveApp.getFileById(idRutFinal));
       var FileBase64Rut = Utilities.base64Encode(FileIdRut.getBlob().getBytes());
       var FileTypeRut = FileIdRut.getMimeType();
-      var FileIdRepLegal = DriveApp.getFileById(idCertificacionFinal);
+      var FileIdRepLegal = retry(() =>DriveApp.getFileById(idCertificacionFinal));
       var FileBase64RepLegal = Utilities.base64Encode(FileIdRepLegal.getBlob().getBytes());
       var FileTypeRepLegal = FileIdRepLegal.getMimeType();
       var service = getService();
@@ -1774,9 +1774,9 @@ function EnviarContratoFirma(IdContrato, Ref, IdPoliza) {
   var respuesta = UrlFetchApp.fetch(url, opciones);
   var blob = respuesta.getBlob().setName("Contrato_" + Ref + ".docx");
   Logger.log(IdPoliza)
-  var Poliza = DriveApp.getFileById(IdPoliza);
-  var Inventario = DriveApp.getFileById("1xy6OAB0QpCW86VD-qBJMn9Ku-NzxY6tR");
-  var Clausulado = DriveApp.getFileById("1hX4qLiv20MBMWUVoj5UMyjvMdUge4-rt");
+  var Poliza = retry(() =>DriveApp.getFileById(IdPoliza));
+  var Inventario = retry(() =>DriveApp.getFileById("1xy6OAB0QpCW86VD-qBJMn9Ku-NzxY6tR"));
+  var Clausulado = retry(() =>DriveApp.getFileById("1hX4qLiv20MBMWUVoj5UMyjvMdUge4-rt"));
   var Files = [];
   Files.push(blob, Poliza, Inventario, Clausulado);
   var Pieza = HtmlService.createHtmlOutputFromFile("Pieza_Contrato_Correo").getContent();
@@ -1787,24 +1787,25 @@ function EnviarContratoFirma(IdContrato, Ref, IdPoliza) {
   SheetConsolidado.getRange("AV" + FilaData).setValue(new Date());
 }
 
-function CargarPoliza(form) {
-  var Ref = form["RefCargarPoliza"];
+function CargarPoliza(formData, fileData) {
+  var Ref = formData["RefCargarPoliza"];
   var FilaData = SheetConsolidado.getRange("B:B").createTextFinder(Ref).ignoreDiacritics(true).matchEntireCell(true).findPrevious().getRow();
   var Folder = SheetConsolidado.getRange("AS" + FilaData).getDisplayValue().split("/folders/")[1];
-  var File1 = form["Dato20Contrato"];
-  var TypeFile1 = form["Dato20Contrato"].name;
-  var MimeTypeFile1 = TypeFile1.split(".")[1].toUpperCase();
+
   var NameFile1 = "Poliza-" + Ref;
-  var resource = {
-    title: NameFile1,
-    mimeType: MimeTypeFile1,
-    parents: [{ id: Folder }]
-  };
-  var FileCedula = Drive.Files.insert(resource, File1, {
-    convert: false
-  });
-  var IdPoliza = FileCedula.id;
-  return IdPoliza
+  var blob = Utilities.newBlob(
+    Utilities.base64Decode(fileData.base64),
+    fileData.mimeType,
+    NameFile1
+  );
+
+  var folder = retry(() =>DriveApp.getFolderById(Folder));
+  var file = folder.createFile(blob);
+  var IdPoliza = file.getId();
+  let numpoliza = ocrPolizas(IdPoliza)
+  Logger.log(numpoliza)
+  SheetConsolidado.getRange("BE" + FilaData).setValue(numpoliza)
+  return IdPoliza;
 }
 
 function GenerarContratoFinal(deudores, contratoDatos, Ref) {
@@ -1846,7 +1847,7 @@ function GenerarContratoFinal(deudores, contratoDatos, Ref) {
   }
   var idFolder = SheetConsolidado.getRange("AS" + FilaData).getDisplayValue();
   idFolder = idFolder.split("/folders/")[1];
-  var CopiaFormato = DriveApp.getFileById(IdFormatoContrato).makeCopy("Contrato-" + Ref, DriveApp.getFolderById(idFolder)).getId();
+  var CopiaFormato =retry(() => DriveApp.getFileById(IdFormatoContrato).makeCopy("Contrato-" + Ref, DriveApp.getFolderById(idFolder)).getId());
   var ContratoFinal = DocumentApp.openById(CopiaFormato);
   if (deudores.length < 1) {
     ContratoFinal.getBody().replaceText('“TITULO DEUDOR  SOLIDARIO FIRMA”', '');
@@ -1977,7 +1978,7 @@ function DesistirCasoBrokerInmobiliaria(Ref) {
 
 function GetDataBrokersYInmobiliarias() {
   var UserMail = Session.getActiveUser().getEmail();
-  var DataRange = SheetConsolidadoBrokersYInmobiliarias.getRange("A2:BF" + SheetConsolidado.getLastRow()).getDisplayValues();
+  var DataRange = SheetConsolidadoBrokersYInmobiliarias.getRange("A2:BF" + SheetConsolidadoBrokersYInmobiliarias.getLastRow()).getDisplayValues();
   var DataRangeUserPending = [];
   DataRange.filter(function (DataRange) {
     var Validation = DataRange[52].indexOf("Pendiente Validación Documental");
@@ -1988,7 +1989,39 @@ function GetDataBrokersYInmobiliarias() {
       var ValorServicios = formatearAEntero(DataRange[48]);
       var PrimaServicios = formatNumberInput(CalculatePrimaServicios(DataRange[24], ValorServicios).toString());
       Logger.log(PrimaServicios)
-      DataRangeUserPending.push([DataRange[0], DataRange[11], DataRange[19], DataRange[12], DataRange[1], "", DataRange[2], DataRange[24], DataRange[28], DataRange[45], DataRange[10], DataRange[8], DataRange[9], DataRange[13], DataRange[18], DataRange[33], DataRange[26], DataRange[27], DataRange[28], DataRange[25], DataRange[14], DataRange[48], DataRange[49], DataRange[51], DataRange[17], DataRange[56], DataRange[30], DataRange[31], "broker-inmobiliaria"]);
+      DataRangeUserPending.push([
+        DataRange[0],   // [0]  Fecha_Radicación
+        DataRange[11],  // [1]  Nombre Cliente
+        DataRange[19],  // [2]  Ciudad Inmueble
+        DataRange[12],  // [3]  Celular Cliente
+        DataRange[1],   // [4]  Tipo Radicador
+        "",             // [5]  (vacío)
+        DataRange[2],   // [6]  Código Solicitud (IdRef)
+        DataRange[24],  // [7]  Destino Inmueble
+        DataRange[28],  // [8]  Valor Total Asegurar
+        DataRange[45],  // [9]  Requiere Generación Contrato
+        DataRange[10],  // [10] Id Cliente (Cédula)
+        DataRange[8],   // [11] Tipo de Persona (Tomador)
+        DataRange[9],   // [12] Tipo Documento
+        DataRange[13],  // [13] Correo Cliente
+        DataRange[18],  // [14] Dirección Inmueble
+        DataRange[33],  // [15] Fecha Inicio Póliza
+        DataRange[26],  // [16] Valor Canon
+        DataRange[27],  // [17] Valor Admon
+        DataRange[28],  // [18] Valor Total Asegurar
+        DataRange[25],  // [19] Tiempo Póliza (Vigencia)
+        DataRange[14],  // [20] ¿Quién firma el contrato?
+        DataRange[48],  // [21] Valor Adicional Daños y Faltantes
+        DataRange[49],  // [22] Valor Adicional Servicios Públicos
+        DataRange[51],  // [23] Source Files (JSON documentos)
+        DataRange[17],  // [24] Número Matrícula Inmueble
+        DataRange[56],  // [25] Funcionario Otorga Permiso
+        DataRange[30],  // [26] Valor Prima Daños
+        DataRange[31],  // [27] Valor Prima Servicios
+        DataRange[52],  // [28] Estado Solicitud
+        DataRange[6],   // [29] Celular Broker
+        "broker-inmobiliaria" // [30] Tipo de lead (DEBE ser el último elemento)
+      ]);
     }
   });
   return DataRangeUserPending;
@@ -2099,7 +2132,7 @@ function GenerarContratoFinalBrokersYInmobiliarias(deudores, contratoDatos, Ref)
   }
   var idFolder = SheetConsolidadoBrokersYInmobiliarias.getRange("AY" + FilaData).getDisplayValue();
   idFolder = idFolder.split("/folders/")[1];
-  var CopiaFormato = DriveApp.getFileById(IdFormatoContrato).makeCopy("Contrato-" + Ref, DriveApp.getFolderById(idFolder)).getId();
+  var CopiaFormato = retry(() =>DriveApp.getFileById(IdFormatoContrato).makeCopy("Contrato-" + Ref, DriveApp.getFolderById(idFolder)).getId());
   var ContratoFinal = DocumentApp.openById(CopiaFormato);
   if (deudores.length < 1) {
     ContratoFinal.getBody().replaceText('“TITULO DEUDOR  SOLIDARIO FIRMA”', '');
@@ -2159,24 +2192,22 @@ function GenerarContratoFinalBrokersYInmobiliarias(deudores, contratoDatos, Ref)
   return { IdContratoFinal: ContratoFinal.getId() }
 }
 
-function CargarPolizaBrokerYInmobiliaria(form) {
-  var Ref = form["RefCargarPolizaModal2"];
+function CargarPolizaBrokerYInmobiliaria(formData, fileData) {
+  var Ref = formData["RefCargarPolizaModal2"];
   var FilaData = SheetConsolidadoBrokersYInmobiliarias.getRange("C:C").createTextFinder(Ref).ignoreDiacritics(true).matchEntireCell(true).findPrevious().getRow();
   var Folder = SheetConsolidadoBrokersYInmobiliarias.getRange("AY" + FilaData).getDisplayValue().split("/folders/")[1];
-  var File1 = form["Dato20ContratoModal2"];
-  var TypeFile1 = form["Dato20ContratoModal2"].name;
-  var MimeTypeFile1 = TypeFile1.split(".")[1].toUpperCase();
+
   var NameFile1 = "Poliza-" + Ref;
-  var resource = {
-    title: NameFile1,
-    mimeType: MimeTypeFile1,
-    parents: [{ id: Folder }]
-  };
-  var FileCedula = Drive.Files.insert(resource, File1, {
-    convert: false
-  });
-  var IdPoliza = FileCedula.id;
-  return IdPoliza
+  var blob = Utilities.newBlob(
+    Utilities.base64Decode(fileData.base64),
+    fileData.mimeType,
+    NameFile1
+  );
+
+  var folder =retry(() => DriveApp.getFolderById(Folder));
+  var file = folder.createFile(blob);
+  var IdPoliza = file.getId();
+  return IdPoliza;
 }
 
 function EnviarContratoFirmaBrokerYInmobiliaria(IdContrato, Ref, IdPoliza, TipoEnvio) {
@@ -2211,9 +2242,9 @@ function EnviarContratoFirmaBrokerYInmobiliaria(IdContrato, Ref, IdPoliza, TipoE
     var respuesta = UrlFetchApp.fetch(url, opciones);
     var blob = respuesta.getBlob().setName("Contrato_" + Ref + ".docx");
     Logger.log(IdPoliza)
-    var Poliza = DriveApp.getFileById(IdPoliza);
-    var Inventario = DriveApp.getFileById("1xy6OAB0QpCW86VD-qBJMn9Ku-NzxY6tR");
-    var Clausulado = DriveApp.getFileById("1hX4qLiv20MBMWUVoj5UMyjvMdUge4-rt");
+    var Poliza = retry(() =>DriveApp.getFileById(IdPoliza));
+    var Inventario = retry(() =>DriveApp.getFileById("1xy6OAB0QpCW86VD-qBJMn9Ku-NzxY6tR"));
+    var Clausulado = retry(() =>DriveApp.getFileById("1hX4qLiv20MBMWUVoj5UMyjvMdUge4-rt"));
     var Files = [];
     Files.push(blob, Poliza, Inventario, Clausulado);
     var Pieza = HtmlService.createHtmlOutputFromFile("Pieza_Contrato_Correo").getContent();
@@ -2222,9 +2253,9 @@ function EnviarContratoFirmaBrokerYInmobiliaria(IdContrato, Ref, IdPoliza, TipoE
     SheetConsolidadoBrokersYInmobiliarias.getRange("BG" + FilaData).setValue(new Date());
     SheetConsolidadoBrokersYInmobiliarias.getRange("BA" + FilaData).setValue("Expedido");
   } else {
-    var Poliza = DriveApp.getFileById(IdPoliza);
-    var Inventario = DriveApp.getFileById("1xy6OAB0QpCW86VD-qBJMn9Ku-NzxY6tR");
-    var Clausulado = DriveApp.getFileById("1hX4qLiv20MBMWUVoj5UMyjvMdUge4-rt");
+    var Poliza = retry(() =>DriveApp.getFileById(IdPoliza));
+    var Inventario = retry(() =>DriveApp.getFileById("1xy6OAB0QpCW86VD-qBJMn9Ku-NzxY6tR"));
+    var Clausulado = retry(() =>DriveApp.getFileById("1hX4qLiv20MBMWUVoj5UMyjvMdUge4-rt"));
     var Files = [];
     Files.push(Poliza, Inventario, Clausulado);
     var Pieza = HtmlService.createHtmlOutputFromFile("Pieza_Solo_Poliza_Correo").getContent();
@@ -2279,26 +2310,41 @@ function formatearFechaEnEspanol() {
   return { dia: dia, mes: mes, year: year };
 }
 
-function ocrPolizas() {
-  var file = DriveApp.getFileById("1oyfkuO8YZtn8wJps2461erOTOOSqHOoF");
+function retry(fn, retries = 5, delay = 1000) {
+  for (var i = 0; i < retries; i++) {
+    try {
+      return fn();
+    } catch (e) {
+      Logger.log(`Intento ${i + 1} fallido: ${e.message}. Reintentando...`);
+      if (i === retries - 1) throw e;
+      Utilities.sleep(delay);
+      delay *= 2; 
+    }
+  }
+}
+
+function ocrPolizas(idPoliza) {
+  var file = retry(() => DriveApp.getFileById(idPoliza));
   var folderId = "1r33QZCu3RlumKQK3wj97W6lAYbHSzcGl";
   var resource = {
     title: file.getName(),
+    mimeType: 'application/vnd.google-apps.document',
     parents: [{ id: folderId }]
   };
+  console.log(idPoliza)
   var blob = file.getBlob();
-  var docFile = Drive.Files.insert(resource, blob, {
-    ocr: true,
-    mimeType: MimeType.GOOGLE_DOCS
-  });
+  var docFile = retry(() => Drive.Files.insert(resource, blob, {
+    convert: true
+  }));
   var doc = DocumentApp.openById(docFile.id);
   var text = doc.getBody().getText();
   var poliza = text.split("Póliza N°:")[1].trim().split("Certificado:")[0].trim();
   var valorNeto = text.split("TOTAL A PAGAR:")[1].trim().split("PERIODICIDAD")[0].trim();
   Logger.log(text);
   Logger.log(poliza);
-  Logger.log(valorNeto)
-  DriveApp.getFileById(docFile.id).setTrashed(true);
+  Logger.log(valorNeto);
+  retry(() => DriveApp.getFileById(docFile.id).setTrashed(true));
+  return poliza
 }
 
 
@@ -2794,7 +2840,7 @@ function _adjuntosRenovCorreoProcesar_(adjuntos) {
     var nomRef = String(a.nombre || a.fileId || "archivo");
     try {
       if (a.tipo === "drive" && a.fileId) {
-        var file = DriveApp.getFileById(String(a.fileId).trim());
+        var file =retry(() => DriveApp.getFileById(String(a.fileId).trim()));
         var b = file.getBlob();
         var nom = _sanitizeNombreAdjuntoRenov_(a.nombre || file.getName());
         b.setName(nom);

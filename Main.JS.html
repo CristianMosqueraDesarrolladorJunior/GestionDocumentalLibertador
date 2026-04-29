@@ -1436,7 +1436,19 @@ window.cancelado = function () {
           };
         }
         RolGlobal = Data[3];
-        $("#UserId").text(Data[2]);
+        var userEmail = Data[2];
+        $("#UserId").text(userEmail);
+
+        // Generar iniciales del email (antes del @)
+        var localPart = userEmail.split("@")[0] || "";
+        var parts = localPart.split(".");
+        var initials = parts.map(function(p) { return p.charAt(0).toUpperCase(); }).join("").substring(0, 2);
+        $("#UserInitials").text(initials);
+
+        // Mostrar rol
+        var rolDisplay = Array.isArray(RolGlobal) ? RolGlobal.join(" · ") : (RolGlobal || "");
+        $("#UserRolBadge").text(rolDisplay);
+
         $('#lock-screen').hide();
 
         // --- PROCESAR GESTIÓN DOCUMENTAL ---
@@ -1521,7 +1533,7 @@ window.cancelado = function () {
           row[1],                    // Nombre del Cliente
           row[2],                    // Ciudad
           row[3] || "",              // Estado
-          "Gestión Documental",      // Origen
+          "Propietario",             // Origen
           idx                        // ID interno (para el botón)
         ]);
         idx++;
@@ -1535,8 +1547,8 @@ window.cancelado = function () {
           row[0],                    // Fecha Radicado
           row[1],                    // Nombre del Cliente
           row[2],                    // Ciudad
-          row[4] || "",              // Tipo Cliente
-          "Broker / Inmobiliaria",   // Origen
+          "Pendiente Validación Documental" || "",              // Tipo Cliente
+          row[4],                    // Origen
           idx                        // ID interno (para el botón)
         ]);
         idx++;
@@ -3046,6 +3058,7 @@ window.cancelado = function () {
         reverseButtons: true
       }).then((result) => {
         if (result.isConfirmed) {
+          $("#ButtonEnviarContratoFirma").prop("disabled", true);
           var RefCliente = $("#Ref_Solicitud_Cliente_Modal").text();
           $("#RefCargarPoliza").val(RefCliente)
           $("#FormCargarPoliza").submit();
@@ -3056,30 +3069,47 @@ window.cancelado = function () {
     });
 
     $("#FormCargarPoliza").submit(function (e) {
-      e.preventDefault(e);
+      e.preventDefault();
       $("#overlay").show();
-      google.script.run.withSuccessHandler(function (Result) {
-        FinalizarValidacion(Result);
-      }).withFailureHandler(function (e) {
-        if (String(e).includes("NetworkError")) {
-          Swal.fire({
-            title: 'Error de Conexión',
-            icon: 'error',
-            html: 'Verifica la conexión a internet.',
-            showCancelButton: false,
-            confirmButtonText: "Cerrar"//&nbsp;<i class="bi bi-x-circle-fill"></i>,
-          });
-        } else {
-          Swal.fire({
-            title: 'Error de Ejecución',
-            icon: 'error',
-            html: 'Presentamos fallas en este momento, estamos trabajando para solucionarlo lo más pronto posible.',
-            showCancelButton: false,
-            confirmButtonText: "Cerrar"//&nbsp;<i class="bi bi-x-circle-fill"></i>,
-          });
-        }
+      const form = this;
+      const fileInput = document.getElementById('Dato20Contrato');
+      if (fileInput.files.length === 0) {
+        Swal.fire("Error", "No se ha seleccionado ningún archivo.", "error");
         $("#overlay").hide();
-      }).CargarPoliza(this);
+        return;
+      }
+      const file = fileInput.files[0];
+      const reader = new FileReader();
+      const formData = {
+        RefCargarPoliza: $("#RefCargarPoliza").val()
+      };
+
+      reader.onload = function (e) {
+        const fileData = {
+          base64: e.target.result.split(',')[1],
+          mimeType: file.type,
+          name: file.name
+        };
+
+        google.script.run
+          .withSuccessHandler(function (Result) {
+            $("#overlay").hide();
+            FinalizarValidacion(Result);
+          })
+          .withFailureHandler(function (e) {
+            $("#overlay").hide();
+            $("#ButtonEnviarContratoFirma").prop("disabled", false);
+            Swal.fire("Error de Ejecución", "Hubo un problema al subir el archivo: " + e, "error");
+          })
+          .CargarPoliza(formData, fileData);
+      };
+
+      reader.onerror = function () {
+        $("#overlay").hide();
+        $("#ButtonEnviarContratoFirma").prop("disabled", false);
+        Swal.fire("Error", "No se pudo leer el archivo localmente.", "error");
+      };
+      reader.readAsDataURL(file);
     });
 
     function FinalizarValidacion(IdFilePoliza) {
@@ -3210,28 +3240,64 @@ window.cancelado = function () {
     $("#FormCargarPolizaModal2").submit(function (e) {
       e.preventDefault(e);
       $("#overlay").show();
-      google.script.run.withSuccessHandler(function (Result) {
-        FinalizarValidacionBrokersYInmobiliarias(Result);
-      }).withFailureHandler(function (e) {
-        if (String(e).includes("NetworkError")) {
-          Swal.fire({
-            title: 'Error de Conexión',
-            icon: 'error',
-            html: 'Verifica la conexión a internet.',
-            showCancelButton: false,
-            confirmButtonText: "Cerrar"//&nbsp;<i class="bi bi-x-circle-fill"></i>,
-          });
-        } else {
-          Swal.fire({
-            title: 'Error de Ejecución',
-            icon: 'error',
-            html: 'Presentamos fallas en este momento, estamos trabajando para solucionarlo lo más pronto posible.',
-            showCancelButton: false,
-            confirmButtonText: "Cerrar"//&nbsp;<i class="bi bi-x-circle-fill"></i>,
-          });
-        }
+      $("#ButtonEnviarContratoFirmaModal2").prop("disabled", true);
+      $("#ButtonEnviarSoloPolizaFirmaModal2").prop("disabled", true);
+
+      var fileInput = document.getElementById('Dato20ContratoModal2');
+      if (fileInput.files.length === 0) {
+        Swal.fire("Error", "No se ha seleccionado ningún archivo.", "error");
         $("#overlay").hide();
-      }).CargarPolizaBrokerYInmobiliaria(this);
+        $("#ButtonEnviarContratoFirmaModal2").prop("disabled", false);
+        $("#ButtonEnviarSoloPolizaFirmaModal2").prop("disabled", false);
+        return;
+      }
+
+      var file = fileInput.files[0];
+      var reader = new FileReader();
+      var formData = {
+        RefCargarPolizaModal2: $("#RefCargarPolizaModal2").val()
+      };
+
+      reader.onload = function (ev) {
+        var fileData = {
+          base64: ev.target.result.split(',')[1],
+          mimeType: file.type,
+          name: file.name
+        };
+
+        google.script.run.withSuccessHandler(function (Result) {
+          FinalizarValidacionBrokersYInmobiliarias(Result);
+        }).withFailureHandler(function (e) {
+          if (String(e).includes("NetworkError")) {
+            Swal.fire({
+              title: 'Error de Conexión',
+              icon: 'error',
+              html: 'Verifica la conexión a internet.',
+              showCancelButton: false,
+              confirmButtonText: "Cerrar"
+            });
+          } else {
+            Swal.fire({
+              title: 'Error de Ejecución',
+              icon: 'error',
+              html: 'Presentamos fallas en este momento, estamos trabajando para solucionarlo lo más pronto posible.',
+              showCancelButton: false,
+              confirmButtonText: "Cerrar"
+            });
+          }
+          $("#overlay").hide();
+          $("#ButtonEnviarContratoFirmaModal2").prop("disabled", false);
+          $("#ButtonEnviarSoloPolizaFirmaModal2").prop("disabled", false);
+        }).CargarPolizaBrokerYInmobiliaria(formData, fileData);
+      };
+
+      reader.onerror = function () {
+        $("#overlay").hide();
+        $("#ButtonEnviarContratoFirmaModal2").prop("disabled", false);
+        $("#ButtonEnviarSoloPolizaFirmaModal2").prop("disabled", false);
+        Swal.fire("Error", "No se pudo leer el archivo localmente.", "error");
+      };
+      reader.readAsDataURL(file);
     });
 
     function FinalizarValidacionBrokersYInmobiliarias(IdFilePoliza) {
@@ -3972,18 +4038,22 @@ window.cancelado = function () {
         Select.append('<option value="Enviar Poliza">Enviar Poliza</option>');
       }
       var QuienFirma = data[20];
-      var ValorAdicionalServicios = data[19];
       var ValorAdicionalDanos = data[21];
       var VigenciaPoliza = data[19];
-      var TotalAnualFormat = data[8];
       var ValorServicosPoliza = data[22];
       var NumMatricula = data[24];
       var UsuarioAutoriza = data[25];
       if (UsuarioAutoriza == "") {
         UsuarioAutoriza = "No Aplica"
-      } else {
-        UsuarioAutoriza = UsuarioAutoriza
       }
+
+      var MesesVigencia = VigenciaPoliza ? parseFloat(VigenciaPoliza.toString().split(" ")[0]) : 1;
+      var ValorTotalAsegurarAnual = 0;
+      if (TotalAsegurar) {
+        var rawValue = TotalAsegurar.toString().replace(/\$/g, "").replace(/\./g, "").replace(/,/g, "").trim();
+        ValorTotalAsegurarAnual = parseFloat(rawValue) || 0;
+      }
+      var TotalAnualFormat = "$" + formatearMiles(ValorTotalAsegurarAnual * MesesVigencia);
       $("#Ref_Solicitud_Cliente_Modal2").text(IdRefCliente);
       $("#Fecha_Solicitud_Cliente_Modal2").text(FechaRadicado);
       $("#Destino_Solicitud_Cliente_Modal2").text(DestinoInmueble);
@@ -5304,8 +5374,7 @@ function calcularCotizacion() {
         .removeClass('bg-primary bg-opacity-10 text-primary') // Quita el azul
         .addClass('bg-light text-secondary border');          // Pone gris suave
 
-    if (!$('#alertaVigencia').hasClass('d-none') && !$('#alertaVigencia').hasClass('hidden')) return;
-
+    if (!$('#alertaVigencia').hasClass('hidden')) return;
     // 1. GESTIÓN DEL IVA COMERCIAL
     const tipoServ = $('#tipoServicio').val(); 
     if (tipoServ === 'COMERCIO') {
