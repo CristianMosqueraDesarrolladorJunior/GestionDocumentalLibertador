@@ -32,13 +32,13 @@ function resolveClientReference(policyNumber) {
     let finder = SheetConsolidado.getRange("BE2:BE").createTextFinder(cleanPolicy).matchEntireCell(true).findNext();
 
     if (finder) {
-      let ref = SheetConsolidado.getRange(finder.getRow(), 2).getValue(); 
+      let ref = SheetConsolidado.getRange(finder.getRow(), 2).getValue();
       return { found: true, ref: String(ref).trim(), source: 'Espejo' };
     }
     let finderAnt = PolizasAntiguas.getRange("C2:C").createTextFinder(cleanPolicy).matchEntireCell(true).findNext();
 
     if (finderAnt) {
-      let ref = PolizasAntiguas.getRange(finderAnt.getRow(), 2).getValue(); 
+      let ref = PolizasAntiguas.getRange(finderAnt.getRow(), 2).getValue();
       return { found: true, ref: String(ref).trim(), source: 'PolizasAntiguas' };
     }
 
@@ -53,8 +53,8 @@ function resolveClientReference(policyNumber) {
 
 function findDriveFolderByRef(ref) {
   if (!ref) return null;
-  const rootId = "1e05FPKAfrRnqBbUpOF1JP9ostCg2TsjC"; 
-  const rootFolder = retry(() =>DriveApp.getFolderById(rootId));
+  const rootId = "1e05FPKAfrRnqBbUpOF1JP9ostCg2TsjC";
+  const rootFolder = retry(() => DriveApp.getFolderById(rootId));
 
   const iter = rootFolder.searchFolders(`title contains '${ref}' and trashed = false`);
 
@@ -147,7 +147,7 @@ function getPolicyFiles(policyRef) {
 
 function buscarCarpetaYGuardarArchivos(archivosBase64, datos, ref) {
   const rootId = "1e05FPKAfrRnqBbUpOF1JP9ostCg2TsjC";
-  const rootFolder = retry(() =>DriveApp.getFolderById(rootId));
+  const rootFolder = retry(() => DriveApp.getFolderById(rootId));
   const urlsNuevas = {};
 
   const iteradorCandidatos = rootFolder.searchFolders(`title contains '${ref}' and trashed = false`);
@@ -198,7 +198,7 @@ function guardarArchivosEnCarpeta(archivosBase64, datos, carpetaRenovacion) {
     'propietarioDoc': 'DOC_PROPIETARIO',
     'otroSi': 'OTRO_SI',
     'cesionCedula': 'CESION_ID',
-    'polizaAjuste': 'POLIZA_CON_AJUSTE' 
+    'polizaAjuste': 'POLIZA_CON_AJUSTE'
   };
 
   let urlsGeneradas = {};
@@ -345,7 +345,7 @@ function processAnalystDecision(payload) {
     'poliza': 'POLIZA_RENOVADA',
     'cedula': 'CEDULA_TOMADOR',
     'comprobante': 'SOPORTE_PAGO',
-    'polizaAjuste': 'POLIZA_CON_AJUSTE'  
+    'polizaAjuste': 'POLIZA_CON_AJUSTE'
   };
 
   try {
@@ -367,7 +367,7 @@ function processAnalystDecision(payload) {
         try {
           let fileId = extraerIdGoogleDrive(meta.url);
           if (fileId) {
-            const originalFile = retry(() =>DriveApp.getFileById(fileId));
+            const originalFile = retry(() => DriveApp.getFileById(fileId));
             const prefijo = mapaNombres[key] || key.toUpperCase();
             const nombreOriginal = originalFile.getName();
             const ext = nombreOriginal.includes('.') ? nombreOriginal.split('.').pop() : 'pdf';
@@ -385,7 +385,27 @@ function processAnalystDecision(payload) {
         }
       }
     }
+    //revision//
+    if (urlsFinales.polizaURL) {
+      try {
+        var idPolizaRenov = extraerIdGoogleDrive(urlsFinales.polizaURL);
+        if (idPolizaRenov) {
+          var numPolizaRenov = ocrPolizas(idPolizaRenov);
+          urlsFinales.numPolizaEmitida = numPolizaRenov;
 
+          var dataCorretaje = SheetWareHouseCorretaje.getDataRange().getDisplayValues();
+          for (var i = 1; i < dataCorretaje.length; i++) {
+            if (String(dataCorretaje[i][1]).indexOf(poliza) !== -1) {
+              SheetWareHouseCorretaje.getRange(i + 1, 6).setValue(numPolizaRenov);
+              break;
+            }
+          }
+        }
+      } catch (eOcr) {
+        console.error("OCR renovación falló: " + eOcr);
+      }
+    }
+    /////////////////////////////////////////////////////////
     const data = sheet.getDataRange().getDisplayValues();
     let rowIndex = -1;
     for (let i = 1; i < data.length; i++) {
@@ -516,7 +536,7 @@ function getMetaCargaCorreoRenovacionCliente_() {
 function GetDataUser() {
   var UserMail = Session.getActiveUser().getEmail();
   let Status;
-  
+
   // Nota: Asegúrate de que 'SheetConsolidado', 'SheetAssignment' y 'Renovaciones' 
   // estén definidas globalmente o inicialízalas aquí.
   let DataRange = SheetConsolidado.getRange("A2:BC" + SheetConsolidado.getLastRow()).getDisplayValues();
@@ -540,13 +560,12 @@ function GetDataUser() {
   // ── SECCIÓN GESTIÓN DOCUMENTAL (UNIFICADA) ──────────────────
   if (Roles.includes("Gestión Documental")) {
     let leadsInternos = [];
-    
+
     // 1. Filtramos los leads internos de la hoja Consolidado
-    DataRange.filter(function(row) {
-      let tieneEstado = row.indexOf("Pendiente Validación Documental") > -1 ||
-                        row.indexOf("Pendiente Corrección Documental") > -1;
+    DataRange.filter(function (row) {
+      let tieneEstado = row.indexOf("Pendiente Validación Documental") > -1;
       let esDelUsuario = row[54].indexOf(UserMail) > -1;
-      
+
       if (tieneEstado && esDelUsuario) {
         leadsInternos.push([
           row[0], row[4], row[8], row[24], row[2], "Gestión",
@@ -564,7 +583,7 @@ function GetDataUser() {
     // 3. Unimos ambos arrays en la misma propiedad del objeto resultado
     // .concat() junta los dos grupos en una sola lista larga
     resultado.gestionDocumental = leadsInternos.concat(leadsBrokers);
-    
+
     console.log("Total leads (Internos + Brokers):", resultado.gestionDocumental.length);
   }
 
@@ -801,15 +820,15 @@ function ModelValidationCTL(Ref) {
   if (TipoCliente == "Persona natural") {
     var IdFiles = SheetConsolidado.getRange("AT" + FilaData).getDisplayValue();
     IdFiles = JSON.parse(IdFiles);
-    var FileIdCTL = retry(() =>DriveApp.getFileById(IdFiles.idCTL));
+    var FileIdCTL = retry(() => DriveApp.getFileById(IdFiles.idCTL));
     var FileBase64CTL = Utilities.base64Encode(FileIdCTL.getBlob().getBytes());
-    var FileTypeCTL = FileIdCTL.getMimeType();
-    var FileIdCedula =retry(() => DriveApp.getFileById(IdFiles.idCedula));
+    var FileTypeCTL = getValidMimeType(FileIdCTL);
+    var FileIdCedula = retry(() => DriveApp.getFileById(IdFiles.idCedula));
     var FileBase64Cedula = Utilities.base64Encode(FileIdCedula.getBlob().getBytes());
-    var FileTypeCedula = FileIdCedula.getMimeType();
-    var FileIdSarlaft = retry(() =>DriveApp.getFileById(IdFiles.idSARLAFT));
+    var FileTypeCedula = getValidMimeType(FileIdCedula);
+    var FileIdSarlaft = retry(() => DriveApp.getFileById(IdFiles.idSARLAFT));
     var FileBase64Sarlaft = Utilities.base64Encode(FileIdSarlaft.getBlob().getBytes());
-    var FileTypeSarlaft = FileIdSarlaft.getMimeType();
+    var FileTypeSarlaft = getValidMimeType(FileIdSarlaft);
     var service = getService();
     var API_ENDPOINT = "us-central1-aiplatform.googleapis.com"
     var PROJECT_ID = "proyecto-ia-servicios-bolivar"
@@ -955,7 +974,7 @@ function ModelValidationCTL(Ref) {
     }; */
 
     /* var requests = [options, options2]; */
-    var response = UrlFetchApp.fetch(url, options);
+    var response = retry(() => UrlFetchApp.fetch(url, options));
     var responseText = response.getContentText();
     Logger.log("Respuesta Completa de la API (Texto): " + responseText);
 
@@ -984,18 +1003,18 @@ function ModelValidationCTL(Ref) {
   } else {
     var IdFiles = SheetConsolidado.getRange("AT" + FilaData).getDisplayValue();
     IdFiles = JSON.parse(IdFiles);
-    var FileIdCTL = retry(() =>DriveApp.getFileById(IdFiles.idCTL));
+    var FileIdCTL = retry(() => DriveApp.getFileById(IdFiles.idCTL));
     var FileBase64CTL = Utilities.base64Encode(FileIdCTL.getBlob().getBytes());
-    var FileTypeCTL = FileIdCTL.getMimeType();
-    var FileIdCedula = retry(() =>DriveApp.getFileById(IdFiles.idCedula));
+    var FileTypeCTL = getValidMimeType(FileIdCTL);
+    var FileIdCedula = retry(() => DriveApp.getFileById(IdFiles.idCedula));
     var FileBase64Cedula = Utilities.base64Encode(FileIdCedula.getBlob().getBytes());
-    var FileTypeCedula = FileIdCedula.getMimeType();
-    var FileIdRut = retry(() =>DriveApp.getFileById(IdFiles.idRUT));
+    var FileTypeCedula = getValidMimeType(FileIdCedula);
+    var FileIdRut = retry(() => DriveApp.getFileById(IdFiles.idRUT));
     var FileBase64Rut = Utilities.base64Encode(FileIdRut.getBlob().getBytes());
-    var FileTypeRut = FileIdRut.getMimeType();
-    var FileIdRepLegal = retry(() =>DriveApp.getFileById(IdFiles.idCERTLEGAL));
+    var FileTypeRut = getValidMimeType(FileIdRut);
+    var FileIdRepLegal = retry(() => DriveApp.getFileById(IdFiles.idCERTLEGAL));
     var FileBase64RepLegal = Utilities.base64Encode(FileIdRepLegal.getBlob().getBytes());
-    var FileTypeRepLegal = FileIdRepLegal.getMimeType();
+    var FileTypeRepLegal = getValidMimeType(FileIdRepLegal);
     var service = getService();
     var API_ENDPOINT = "us-central1-aiplatform.googleapis.com"
     var PROJECT_ID = "proyecto-ia-servicios-bolivar"
@@ -1145,7 +1164,7 @@ function ModelValidationCTL(Ref) {
 
     var requests = [options, options2];
     try {
-      var response = UrlFetchApp.fetchAll(requests);
+      var response = retry(() => UrlFetchApp.fetchAll(requests));
       var parsedResponse = response.map(r => JSON.parse(r.getContentText()));
       var fullText = cleanGeminiResponse(parsedResponse);
       Logger.log(fullText);
@@ -1225,12 +1244,12 @@ function ModelValidationCTL2(Ref) {
     }
     if (idCtlFinal != "" && idFileCedula != "") {
       Logger.log(idCtlFinal)
-      var FileIdCTL = retry(() =>DriveApp.getFileById(idCtlFinal));
+      var FileIdCTL = retry(() => DriveApp.getFileById(idCtlFinal));
       var FileBase64CTL = Utilities.base64Encode(FileIdCTL.getBlob().getBytes());
-      var FileTypeCTL = FileIdCTL.getMimeType();
-      var FileIdCedula =retry(() => DriveApp.getFileById(idCedulaFinal));
+      var FileTypeCTL = getValidMimeType(FileIdCTL);
+      var FileIdCedula = retry(() => DriveApp.getFileById(idCedulaFinal));
       var FileBase64Cedula = Utilities.base64Encode(FileIdCedula.getBlob().getBytes());
-      var FileTypeCedula = FileIdCedula.getMimeType();
+      var FileTypeCedula = getValidMimeType(FileIdCedula);
       var service = getService();
       var API_ENDPOINT = "us-central1-aiplatform.googleapis.com"
       var PROJECT_ID = "proyecto-ia-servicios-bolivar"
@@ -1369,7 +1388,7 @@ function ModelValidationCTL2(Ref) {
 
       var requests = [options, options2];
       try {
-        var response = UrlFetchApp.fetchAll(requests);
+        var response = retry(() => UrlFetchApp.fetchAll(requests));
         var parsedResponse = response.map(r => JSON.parse(r.getContentText()));
         var fullText = cleanGeminiResponse(parsedResponse);
         Logger.log(fullText);
@@ -1421,18 +1440,18 @@ function ModelValidationCTL2(Ref) {
       }
     }
     if (idCtlFinal != "" && idCedulaFinal != "" && idCertificacionFinal != "" && idRutFinal != "") {
-      var FileIdCTL =retry(() => DriveApp.getFileById(idCtlFinal));
+      var FileIdCTL = retry(() => DriveApp.getFileById(idCtlFinal));
       var FileBase64CTL = Utilities.base64Encode(FileIdCTL.getBlob().getBytes());
-      var FileTypeCTL = FileIdCTL.getMimeType();
-      var FileIdCedula = retry(() =>DriveApp.getFileById(idCedulaFinal));
+      var FileTypeCTL = getValidMimeType(FileIdCTL);
+      var FileIdCedula = retry(() => DriveApp.getFileById(idCedulaFinal));
       var FileBase64Cedula = Utilities.base64Encode(FileIdCedula.getBlob().getBytes());
-      var FileTypeCedula = FileIdCedula.getMimeType();
-      var FileIdRut = retry(() =>DriveApp.getFileById(idRutFinal));
+      var FileTypeCedula = getValidMimeType(FileIdCedula);
+      var FileIdRut = retry(() => DriveApp.getFileById(idRutFinal));
       var FileBase64Rut = Utilities.base64Encode(FileIdRut.getBlob().getBytes());
-      var FileTypeRut = FileIdRut.getMimeType();
-      var FileIdRepLegal = retry(() =>DriveApp.getFileById(idCertificacionFinal));
+      var FileTypeRut = getValidMimeType(FileIdRut);
+      var FileIdRepLegal = retry(() => DriveApp.getFileById(idCertificacionFinal));
       var FileBase64RepLegal = Utilities.base64Encode(FileIdRepLegal.getBlob().getBytes());
-      var FileTypeRepLegal = FileIdRepLegal.getMimeType();
+      var FileTypeRepLegal = getValidMimeType(FileIdRepLegal);
       var service = getService();
       var API_ENDPOINT = "us-central1-aiplatform.googleapis.com"
       var PROJECT_ID = "proyecto-ia-servicios-bolivar"
@@ -1582,7 +1601,7 @@ function ModelValidationCTL2(Ref) {
 
       var requests = [options, options2];
       try {
-        var response = UrlFetchApp.fetchAll(requests);
+        var response = retry(() => UrlFetchApp.fetchAll(requests));
         var parsedResponse = response.map(r => JSON.parse(r.getContentText()));
         var fullText = cleanGeminiResponse(parsedResponse);
         Logger.log(fullText);
@@ -1774,9 +1793,9 @@ function EnviarContratoFirma(IdContrato, Ref, IdPoliza) {
   var respuesta = UrlFetchApp.fetch(url, opciones);
   var blob = respuesta.getBlob().setName("Contrato_" + Ref + ".docx");
   Logger.log(IdPoliza)
-  var Poliza = retry(() =>DriveApp.getFileById(IdPoliza));
-  var Inventario = retry(() =>DriveApp.getFileById("1xy6OAB0QpCW86VD-qBJMn9Ku-NzxY6tR"));
-  var Clausulado = retry(() =>DriveApp.getFileById("1hX4qLiv20MBMWUVoj5UMyjvMdUge4-rt"));
+  var Poliza = retry(() => DriveApp.getFileById(IdPoliza));
+  var Inventario = retry(() => DriveApp.getFileById("1xy6OAB0QpCW86VD-qBJMn9Ku-NzxY6tR"));
+  var Clausulado = retry(() => DriveApp.getFileById("1hX4qLiv20MBMWUVoj5UMyjvMdUge4-rt"));
   var Files = [];
   Files.push(blob, Poliza, Inventario, Clausulado);
   var Pieza = HtmlService.createHtmlOutputFromFile("Pieza_Contrato_Correo").getContent();
@@ -1799,7 +1818,7 @@ function CargarPoliza(formData, fileData) {
     NameFile1
   );
 
-  var folder = retry(() =>DriveApp.getFolderById(Folder));
+  var folder = retry(() => DriveApp.getFolderById(Folder));
   var file = folder.createFile(blob);
   var IdPoliza = file.getId();
   let numpoliza = ocrPolizas(IdPoliza)
@@ -1847,7 +1866,7 @@ function GenerarContratoFinal(deudores, contratoDatos, Ref) {
   }
   var idFolder = SheetConsolidado.getRange("AS" + FilaData).getDisplayValue();
   idFolder = idFolder.split("/folders/")[1];
-  var CopiaFormato =retry(() => DriveApp.getFileById(IdFormatoContrato).makeCopy("Contrato-" + Ref, DriveApp.getFolderById(idFolder)).getId());
+  var CopiaFormato = retry(() => DriveApp.getFileById(IdFormatoContrato).makeCopy("Contrato-" + Ref, DriveApp.getFolderById(idFolder)).getId());
   var ContratoFinal = DocumentApp.openById(CopiaFormato);
   if (deudores.length < 1) {
     ContratoFinal.getBody().replaceText('“TITULO DEUDOR  SOLIDARIO FIRMA”', '');
@@ -2132,7 +2151,7 @@ function GenerarContratoFinalBrokersYInmobiliarias(deudores, contratoDatos, Ref)
   }
   var idFolder = SheetConsolidadoBrokersYInmobiliarias.getRange("AY" + FilaData).getDisplayValue();
   idFolder = idFolder.split("/folders/")[1];
-  var CopiaFormato = retry(() =>DriveApp.getFileById(IdFormatoContrato).makeCopy("Contrato-" + Ref, DriveApp.getFolderById(idFolder)).getId());
+  var CopiaFormato = retry(() => DriveApp.getFileById(IdFormatoContrato).makeCopy("Contrato-" + Ref, DriveApp.getFolderById(idFolder)).getId());
   var ContratoFinal = DocumentApp.openById(CopiaFormato);
   if (deudores.length < 1) {
     ContratoFinal.getBody().replaceText('“TITULO DEUDOR  SOLIDARIO FIRMA”', '');
@@ -2204,11 +2223,15 @@ function CargarPolizaBrokerYInmobiliaria(formData, fileData) {
     NameFile1
   );
 
-  var folder =retry(() => DriveApp.getFolderById(Folder));
+  var folder = retry(() => DriveApp.getFolderById(Folder));
   var file = folder.createFile(blob);
   var IdPoliza = file.getId();
+  ///revision
+  var numPolizaBI = ocrPolizas(IdPoliza);
+  SheetConsolidadoBrokersYInmobiliarias.getRange("BI" + FilaData).setValue(numPolizaBI);
   return IdPoliza;
 }
+
 
 function EnviarContratoFirmaBrokerYInmobiliaria(IdContrato, Ref, IdPoliza, TipoEnvio) {
   var FilaData = SheetConsolidadoBrokersYInmobiliarias.getRange("C:C").createTextFinder(Ref).matchEntireCell(true).ignoreDiacritics(true).findPrevious().getRow();
@@ -2242,9 +2265,9 @@ function EnviarContratoFirmaBrokerYInmobiliaria(IdContrato, Ref, IdPoliza, TipoE
     var respuesta = UrlFetchApp.fetch(url, opciones);
     var blob = respuesta.getBlob().setName("Contrato_" + Ref + ".docx");
     Logger.log(IdPoliza)
-    var Poliza = retry(() =>DriveApp.getFileById(IdPoliza));
-    var Inventario = retry(() =>DriveApp.getFileById("1xy6OAB0QpCW86VD-qBJMn9Ku-NzxY6tR"));
-    var Clausulado = retry(() =>DriveApp.getFileById("1hX4qLiv20MBMWUVoj5UMyjvMdUge4-rt"));
+    var Poliza = retry(() => DriveApp.getFileById(IdPoliza));
+    var Inventario = retry(() => DriveApp.getFileById("1xy6OAB0QpCW86VD-qBJMn9Ku-NzxY6tR"));
+    var Clausulado = retry(() => DriveApp.getFileById("1hX4qLiv20MBMWUVoj5UMyjvMdUge4-rt"));
     var Files = [];
     Files.push(blob, Poliza, Inventario, Clausulado);
     var Pieza = HtmlService.createHtmlOutputFromFile("Pieza_Contrato_Correo").getContent();
@@ -2253,9 +2276,9 @@ function EnviarContratoFirmaBrokerYInmobiliaria(IdContrato, Ref, IdPoliza, TipoE
     SheetConsolidadoBrokersYInmobiliarias.getRange("BG" + FilaData).setValue(new Date());
     SheetConsolidadoBrokersYInmobiliarias.getRange("BA" + FilaData).setValue("Expedido");
   } else {
-    var Poliza = retry(() =>DriveApp.getFileById(IdPoliza));
-    var Inventario = retry(() =>DriveApp.getFileById("1xy6OAB0QpCW86VD-qBJMn9Ku-NzxY6tR"));
-    var Clausulado = retry(() =>DriveApp.getFileById("1hX4qLiv20MBMWUVoj5UMyjvMdUge4-rt"));
+    var Poliza = retry(() => DriveApp.getFileById(IdPoliza));
+    var Inventario = retry(() => DriveApp.getFileById("1xy6OAB0QpCW86VD-qBJMn9Ku-NzxY6tR"));
+    var Clausulado = retry(() => DriveApp.getFileById("1hX4qLiv20MBMWUVoj5UMyjvMdUge4-rt"));
     var Files = [];
     Files.push(Poliza, Inventario, Clausulado);
     var Pieza = HtmlService.createHtmlOutputFromFile("Pieza_Solo_Poliza_Correo").getContent();
@@ -2310,6 +2333,27 @@ function formatearFechaEnEspanol() {
   return { dia: dia, mes: mes, year: year };
 }
 
+/**
+ * Obtiene un mimeType válido para Gemini, infiriendo por extensión si Drive devuelve application/octet-stream.
+ * @param {GoogleAppsScript.Drive.File} file Archivo de Google Drive
+ * @return {string} mimeType válido para Vertex AI
+ */
+function getValidMimeType(file) {
+  var mimeType = file.getMimeType();
+  if (mimeType !== "application/octet-stream") {
+    return mimeType;
+  }
+  var name = file.getName().toLowerCase();
+  if (name.endsWith(".pdf")) return "application/pdf";
+  if (name.endsWith(".png")) return "image/png";
+  if (name.endsWith(".jpg") || name.endsWith(".jpeg")) return "image/jpeg";
+  if (name.endsWith(".tiff") || name.endsWith(".tif")) return "image/tiff";
+  if (name.endsWith(".webp")) return "image/webp";
+  if (name.endsWith(".gif")) return "image/gif";
+  if (name.endsWith(".bmp")) return "image/bmp";
+  throw new Error("No se pudo determinar el tipo MIME del archivo: " + file.getName() + ". Tipo detectado: application/octet-stream");
+}
+
 function retry(fn, retries = 5, delay = 1000) {
   for (var i = 0; i < retries; i++) {
     try {
@@ -2318,7 +2362,7 @@ function retry(fn, retries = 5, delay = 1000) {
       Logger.log(`Intento ${i + 1} fallido: ${e.message}. Reintentando...`);
       if (i === retries - 1) throw e;
       Utilities.sleep(delay);
-      delay *= 2; 
+      delay *= 2;
     }
   }
 }
@@ -2840,7 +2884,7 @@ function _adjuntosRenovCorreoProcesar_(adjuntos) {
     var nomRef = String(a.nombre || a.fileId || "archivo");
     try {
       if (a.tipo === "drive" && a.fileId) {
-        var file =retry(() => DriveApp.getFileById(String(a.fileId).trim()));
+        var file = retry(() => DriveApp.getFileById(String(a.fileId).trim()));
         var b = file.getBlob();
         var nom = _sanitizeNombreAdjuntoRenov_(a.nombre || file.getName());
         b.setName(nom);
