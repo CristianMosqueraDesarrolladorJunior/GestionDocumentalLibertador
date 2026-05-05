@@ -1025,12 +1025,8 @@
     };
 
 window.approveLead = function () {
-  var granTotal = 0;
-  if (typeof currentFullData !== 'undefined' && currentFullData.detalleFinanciero) {
-    granTotal = currentFullData.detalleFinanciero.granTotal;
-  } else if (typeof currentLeadData !== 'undefined' && currentLeadData.detalleFinanciero) {
-    granTotal = currentLeadData.detalleFinanciero.granTotal;
-  }
+  // FIX: Leer granTotal directamente del footer del cotizador (siempre actualizado)
+  var granTotal = parsearMoneda($('#cotizacionTotalFooter').text()) || 0;
 
   var score = parseInt($('#confidenceScore').text(), 10);
   if (score < 100) {
@@ -4361,6 +4357,10 @@ function OpenModalRenovacion(dataEncoded) {
 
         let lead = jsonData.dataLead || {};
         let offer = jsonData.leadSelect || {};
+        // Sincronizar detalleFinanciero desde la oferta para que approveLead pueda leerlo
+        if (offer.detalleFinanciero) {
+            currentFullData.detalleFinanciero = offer.detalleFinanciero;
+        }
         // Fusionamos datos para facilitar búsqueda de URLs
         let mergedData = { ...jsonData, ...lead, ...offer };
         let history = jsonData.historialGestiones || [];
@@ -4422,22 +4422,20 @@ function OpenModalRenovacion(dataEncoded) {
         $('#idInqulino').text(lead.idBrIn || lead.documento);
 
          baseCanonAntiguo = parsearMoneda(lead.canon) || 0;
+        // FIX: Setear base-canon-historico ANTES de cualquier función del cotizador
+        $('#formularioNuevaPoliza').data('base-canon-historico', baseCanonAntiguo);
+
         let tieneOferta = (offer.canon && offer.canon > 0);
         let ipcAplicar = (offer.ajusteIPC !== undefined) ? offer.ajusteIPC : 0;
 
         if (tieneOferta) {
-            if (offer.fechaInicioNuevaVigencia) {
-                $('#fechaInicioVigencia').val(offer.fechaInicioNuevaVigencia);
-                $('#fechaFinVigencia').val(offer.fechaFinNuevaVigencia);
-                validarYCalcularFechas(); 
-            } else {
-                inicializarCotizador(lead);  
-            }
-            $('#input_IPC').val(offer.ajusteIPC !== undefined ? offer.ajusteIPC : 0);
+            // 1. Setear IPC y badge PRIMERO
+            $('#input_IPC').val(ipcAplicar);
             $('#badgeIPC').text(`Base + ${ipcAplicar}%`);
 
-            let canonMostrar = (offer.canon && offer.canon > 0) ? offer.canon : (lead.canon || 0);
-            let admonMostrar = (offer.admon && offer.admon > 0) ? offer.admon : (lead.admon || 0);
+            // 2. Poblar inputs con valores de la oferta ANTES de calcular
+            let canonMostrar = offer.canon; // ya sabemos que > 0 por tieneOferta
+            let admonMostrar = (offer.admon !== undefined && offer.admon !== null) ? offer.admon : (lead.admon || 0);
 
             $('#db_NUEVO_CANON_SOLO').val(formatearMoneda(parsearMoneda(canonMostrar)));
             $('#db_NUEVA_ADMINISTRACION').val(formatearMoneda(parsearMoneda(admonMostrar)));
@@ -4452,9 +4450,16 @@ function OpenModalRenovacion(dataEncoded) {
                 $('#tipoServicio').val('VIVIENDA');  
             }
 
-            let baseParaCalculos = parsearMoneda(lead.canon) || 0;
-            $('#formularioNuevaPoliza').data('base-canon-historico', baseParaCalculos);
+            // 3. Setear fechas y calcular meses (inputs ya están poblados)
+            if (offer.fechaInicioNuevaVigencia) {
+                $('#fechaInicioVigencia').val(offer.fechaInicioNuevaVigencia);
+                $('#fechaFinVigencia').val(offer.fechaFinNuevaVigencia);
+                validarYCalcularFechas(); 
+            } else {
+                inicializarCotizador(lead);  
+            }
 
+            // 4. Calcular cotización final (con todos los inputs correctos)
             calcularCotizacion();
         } else {
             inicializarCotizador(lead); 
@@ -5378,7 +5383,7 @@ function calcularCotizacion() {
         .removeClass('bg-primary bg-opacity-10 text-primary') // Quita el azul
         .addClass('bg-light text-secondary border');          // Pone gris suave
 
-    if (!$('#alertaVigencia').hasClass('hidden')) return;
+    if (!$('#alertaVigencia').hasClass('hidden') && !$('#alertaVigencia').hasClass('d-none')) return;
     // 1. GESTIÓN DEL IVA COMERCIAL
     const tipoServ = $('#tipoServicio').val(); 
     if (tipoServ === 'COMERCIO') {
