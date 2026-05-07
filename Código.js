@@ -832,7 +832,7 @@ function ModelValidationCTL(Ref) {
     var service = getService();
     var API_ENDPOINT = "us-central1-aiplatform.googleapis.com"
     var PROJECT_ID = "proyecto-ia-servicios-bolivar"
-    var MODEL_ID = "gemini-2.0-flash-lite-001"//"gemini-1.0-pro-vision-001";
+    var MODEL_ID = "gemini-2.5-flash-lite";
     var url = "https://" + API_ENDPOINT + "/v1/projects/" + PROJECT_ID + "/locations/us-central1/publishers/google/models/" + MODEL_ID + ":streamGenerateContent";
     var payloadAgent1 = {
       "contents": [
@@ -1018,7 +1018,7 @@ function ModelValidationCTL(Ref) {
     var service = getService();
     var API_ENDPOINT = "us-central1-aiplatform.googleapis.com"
     var PROJECT_ID = "proyecto-ia-servicios-bolivar"
-    var MODEL_ID = "gemini-2.0-flash-lite-001";//gemini-1.0-pro-vision-001
+    var MODEL_ID = "gemini-2.5-flash-lite";
     var url = "https://" + API_ENDPOINT + "/v1/projects/" + PROJECT_ID + "/locations/us-central1/publishers/google/models/" + MODEL_ID + ":streamGenerateContent";
 
     var payloadAgent1 = {
@@ -1253,7 +1253,7 @@ function ModelValidationCTL2(Ref) {
       var service = getService();
       var API_ENDPOINT = "us-central1-aiplatform.googleapis.com"
       var PROJECT_ID = "proyecto-ia-servicios-bolivar"
-      var MODEL_ID = "gemini-2.0-flash-lite-001"//"gemini-1.0-pro-vision-001";
+      var MODEL_ID = "gemini-2.5-flash-lite";
       var url = "https://" + API_ENDPOINT + "/v1/projects/" + PROJECT_ID + "/locations/us-central1/publishers/google/models/" + MODEL_ID + ":streamGenerateContent";
       var payloadAgent1 = {
         "contents": [
@@ -1455,7 +1455,7 @@ function ModelValidationCTL2(Ref) {
       var service = getService();
       var API_ENDPOINT = "us-central1-aiplatform.googleapis.com"
       var PROJECT_ID = "proyecto-ia-servicios-bolivar"
-      var MODEL_ID = "gemini-2.0-flash-lite-001";//gemini-1.0-pro-vision-001
+      var MODEL_ID = "gemini-2.5-flash-lite";
       var url = "https://" + API_ENDPOINT + "/v1/projects/" + PROJECT_ID + "/locations/us-central1/publishers/google/models/" + MODEL_ID + ":streamGenerateContent";
 
       var payloadAgent1 = {
@@ -1821,10 +1821,15 @@ function CargarPoliza(formData, fileData) {
   var folder = retry(() => DriveApp.getFolderById(Folder));
   var file = folder.createFile(blob);
   var IdPoliza = file.getId();
-  let numpoliza = ocrPolizas(IdPoliza)
-  Logger.log(numpoliza)
-  SheetConsolidado.getRange("BE" + FilaData).setValue(numpoliza)
-  return IdPoliza;
+  var numPoliza;
+  try {
+    numPoliza = ocrPolizas(IdPoliza);
+  } catch (e) {
+    throw new Error("OCR_ERROR: " + e.message);
+  }
+  Logger.log(numPoliza);
+  SheetConsolidado.getRange("BE" + FilaData).setValue(numPoliza);
+  return { idPoliza: IdPoliza, numPoliza: numPoliza };
 }
 
 function GenerarContratoFinal(deudores, contratoDatos, Ref) {
@@ -2226,10 +2231,14 @@ function CargarPolizaBrokerYInmobiliaria(formData, fileData) {
   var folder = retry(() => DriveApp.getFolderById(Folder));
   var file = folder.createFile(blob);
   var IdPoliza = file.getId();
-  ///revision
-  var numPolizaBI = ocrPolizas(IdPoliza);
+  var numPolizaBI;
+  try {
+    numPolizaBI = ocrPolizas(IdPoliza);
+  } catch (e) {
+    throw new Error("OCR_ERROR: " + e.message);
+  }
   SheetConsolidadoBrokersYInmobiliarias.getRange("BI" + FilaData).setValue(numPolizaBI);
-  return IdPoliza;
+  return { idPoliza: IdPoliza, numPoliza: numPolizaBI };
 }
 
 

@@ -3069,12 +3069,19 @@ window.cancelado = function () {
 
     $("#FormCargarPoliza").submit(function (e) {
       e.preventDefault();
-      $("#overlay").show();
+      Swal.fire({
+        title: "Procesando...",
+        text: "Subiendo póliza y enviando contrato. Por favor espera.",
+        allowOutsideClick: false,
+        allowEscapeKey: false,
+        showConfirmButton: false,
+        didOpen: function () { Swal.showLoading(); }
+      });
       const form = this;
       const fileInput = document.getElementById('Dato20Contrato');
       if (fileInput.files.length === 0) {
+        Swal.close();
         Swal.fire("Error", "No se ha seleccionado ningún archivo.", "error");
-        $("#overlay").hide();
         return;
       }
       const file = fileInput.files[0];
@@ -3092,92 +3099,89 @@ window.cancelado = function () {
 
         google.script.run
           .withSuccessHandler(function (Result) {
-            $("#overlay").hide();
-            FinalizarValidacion(Result);
+            FinalizarValidacion(Result.idPoliza, Result.numPoliza);
           })
           .withFailureHandler(function (e) {
-            $("#overlay").hide();
+            Swal.close();
             $("#ButtonEnviarContratoFirma").prop("disabled", false);
-            Swal.fire("Error de Ejecución", "Hubo un problema al subir el archivo: " + e, "error");
+            if (String(e).includes("OCR_ERROR")) {
+              Swal.fire("Error en la Póliza", "No se pudo reconocer el número de póliza del archivo. Por favor sube un archivo de póliza válido y legible.", "error");
+            } else {
+              Swal.fire("Error de Ejecución", "Hubo un problema al subir el archivo: " + e, "error");
+            }
           })
           .CargarPoliza(formData, fileData);
       };
 
       reader.onerror = function () {
-        $("#overlay").hide();
+        Swal.close();
         $("#ButtonEnviarContratoFirma").prop("disabled", false);
         Swal.fire("Error", "No se pudo leer el archivo localmente.", "error");
       };
       reader.readAsDataURL(file);
     });
 
-    function FinalizarValidacion(IdFilePoliza) {
+    function FinalizarValidacion(IdFilePoliza, numPoliza) {
       var IdContrato = $("#IdContratoFinal").val();
       var Ref = $("#Ref_Solicitud_Cliente_Modal").text();
       google.script.run.withSuccessHandler(function () {
-        $("#CardValidationDocsSuccess").prop("hidden", true);
-        $("#CardValidationProceduresPropertySuccess").prop("hidden", true);
-        $("#CardValidationSarlaftSuccess").prop("hidden", true);
-        $("#CardValidationDocsError").prop("hidden", true);
-        $("#CardValidationProceduresPropertyError").prop("hidden", true);
-        $("#CardValidationSarlaftError").prop("hidden", true);
-        $("#CardValidationIAError").prop("hidden", true);
-        $("#Card_OnboardingChat").show();
-        $("#DatosContrato").prop("hidden", true);
-        $("#Card_ChatAI").hide();
-        $("#overlay_Modal").hide();
-        TableRender.clear().destroy();
-        $("#DivSelectDeudores").prop("hidden", false);
-        $("#SelectDeudores").val("");
-        $("#DivDeudores").empty();
-        $("#ButtonEnviarContratoFirma").prop("hidden", true);
-        $("#FormCargarPoliza")[0].reset();
-        $("#FormCargarPoliza").prop("hidden", true);
-        $("#ButtonEditarContrato").prop("hidden", true);
-        $("#DivResultModelIA").prop("hidden", false);
-        $("#SelectGestionCasoValidarDocs").val("");
-        $("#SelectValidarResultIA").val("");
-        $("#DivSelectValidarResultIA").hide();
-        $("#DivSelectGestionCasoValidarDocs").hide();
-        google.script.run.withSuccessHandler(ResponseFindUser).withFailureHandler(function (e) {
-          if (String(e).includes("NetworkError")) {
-            Swal.fire({
-              title: 'Error de Conexión',
-              icon: 'error',
-              html: 'Verifica la conexión a internet.',
-              showCancelButton: false,
-              confirmButtonText: "Cerrar"//&nbsp;<i class="bi bi-x-circle-fill"></i>,
-            });
-          } else {
-            Swal.fire({
-              title: 'Error de Ejecución',
-              icon: 'error',
-              html: 'Presentamos fallas en este momento, estamos trabajando para solucionarlo lo más pronto posible.',
-              showCancelButton: false,
-              confirmButtonText: "Cerrar"//&nbsp;<i class="bi bi-x-circle-fill"></i>,
-            });
-          }
-          $("#overlay").hide();
-        }).GetDataUser();
+        Swal.close();
+        Swal.fire({
+          title: "Contrato Enviado",
+          html: 'El correo con el contrato fue enviado correctamente al cliente.<br><br><strong>Póliza N°: ' + numPoliza + '</strong>',
+          icon: "success",
+          confirmButtonText: "OK",
+          allowOutsideClick: false
+        }).then(function () {
+          $("#CardValidationDocsSuccess").prop("hidden", true);
+          $("#CardValidationProceduresPropertySuccess").prop("hidden", true);
+          $("#CardValidationSarlaftSuccess").prop("hidden", true);
+          $("#CardValidationDocsError").prop("hidden", true);
+          $("#CardValidationProceduresPropertyError").prop("hidden", true);
+          $("#CardValidationSarlaftError").prop("hidden", true);
+          $("#CardValidationIAError").prop("hidden", true);
+          $("#Card_OnboardingChat").show();
+          $("#DatosContrato").prop("hidden", true);
+          $("#Card_ChatAI").hide();
+          $("#overlay_Modal").hide();
+          TableRender.clear().destroy();
+          $("#DivSelectDeudores").prop("hidden", false);
+          $("#SelectDeudores").val("");
+          $("#DivDeudores").empty();
+          $("#ButtonEnviarContratoFirma").prop("hidden", true);
+          $("#FormCargarPoliza")[0].reset();
+          $("#FormCargarPoliza").prop("hidden", true);
+          $("#ButtonEditarContrato").prop("hidden", true);
+          $("#DivResultModelIA").prop("hidden", false);
+          $("#SelectGestionCasoValidarDocs").val("");
+          $("#SelectValidarResultIA").val("");
+          $("#DivSelectValidarResultIA").hide();
+          $("#DivSelectGestionCasoValidarDocs").hide();
+          google.script.run.withSuccessHandler(ResponseFindUser).withFailureHandler(function (e) {
+            if (String(e).includes("NetworkError")) {
+              Swal.fire({
+                title: 'Error de Conexión',
+                icon: 'error',
+                html: 'Verifica la conexión a internet.',
+                showCancelButton: false,
+                confirmButtonText: "Cerrar"
+              });
+            } else {
+              Swal.fire({
+                title: 'Error de Ejecución',
+                icon: 'error',
+                html: 'Presentamos fallas en este momento, estamos trabajando para solucionarlo lo más pronto posible.',
+                showCancelButton: false,
+                confirmButtonText: "Cerrar"
+              });
+            }
+            $("#overlay").hide();
+          }).GetDataUser();
+        });
       }).withFailureHandler(function (e) {
-        if (String(e).includes("NetworkError")) {
-          Swal.fire({
-            title: 'Error de Conexión',
-            icon: 'error',
-            html: 'Verifica la conexión a internet.',
-            showCancelButton: false,
-            confirmButtonText: "Cerrar"//&nbsp;<i class="bi bi-x-circle-fill"></i>,
-          });
-        } else {
-          Swal.fire({
-            title: 'Error de Ejecución',
-            icon: 'error',
-            html: 'Presentamos fallas en este momento, estamos trabajando para solucionarlo lo más pronto posible.',
-            showCancelButton: false,
-            confirmButtonText: "Cerrar"//&nbsp;<i class="bi bi-x-circle-fill"></i>,
-          });
-        }
-        $("#overlay").hide();
+        Swal.close();
+        Swal.fire("Error al Enviar", "No se pudo enviar el correo con el contrato. Por favor intenta nuevamente.", "error");
+        $("#ButtonEnviarContratoFirma").prop("disabled", false);
       }).EnviarContratoFirma(IdContrato, Ref, IdFilePoliza);
     }
 
@@ -3238,14 +3242,21 @@ window.cancelado = function () {
 
     $("#FormCargarPolizaModal2").submit(function (e) {
       e.preventDefault(e);
-      $("#overlay").show();
+      Swal.fire({
+        title: "Procesando...",
+        text: "Subiendo póliza y enviando contrato. Por favor espera.",
+        allowOutsideClick: false,
+        allowEscapeKey: false,
+        showConfirmButton: false,
+        didOpen: function () { Swal.showLoading(); }
+      });
       $("#ButtonEnviarContratoFirmaModal2").prop("disabled", true);
       $("#ButtonEnviarSoloPolizaFirmaModal2").prop("disabled", true);
 
       var fileInput = document.getElementById('Dato20ContratoModal2');
       if (fileInput.files.length === 0) {
+        Swal.close();
         Swal.fire("Error", "No se ha seleccionado ningún archivo.", "error");
-        $("#overlay").hide();
         $("#ButtonEnviarContratoFirmaModal2").prop("disabled", false);
         $("#ButtonEnviarSoloPolizaFirmaModal2").prop("disabled", false);
         return;
@@ -3265,33 +3276,21 @@ window.cancelado = function () {
         };
 
         google.script.run.withSuccessHandler(function (Result) {
-          FinalizarValidacionBrokersYInmobiliarias(Result);
+          FinalizarValidacionBrokersYInmobiliarias(Result.idPoliza, Result.numPoliza);
         }).withFailureHandler(function (e) {
-          if (String(e).includes("NetworkError")) {
-            Swal.fire({
-              title: 'Error de Conexión',
-              icon: 'error',
-              html: 'Verifica la conexión a internet.',
-              showCancelButton: false,
-              confirmButtonText: "Cerrar"
-            });
-          } else {
-            Swal.fire({
-              title: 'Error de Ejecución',
-              icon: 'error',
-              html: 'Presentamos fallas en este momento, estamos trabajando para solucionarlo lo más pronto posible.',
-              showCancelButton: false,
-              confirmButtonText: "Cerrar"
-            });
-          }
-          $("#overlay").hide();
+          Swal.close();
           $("#ButtonEnviarContratoFirmaModal2").prop("disabled", false);
           $("#ButtonEnviarSoloPolizaFirmaModal2").prop("disabled", false);
+          if (String(e).includes("OCR_ERROR")) {
+            Swal.fire("Error en la Póliza", "No se pudo reconocer el número de póliza del archivo. Por favor sube un archivo de póliza válido y legible.", "error");
+          } else {
+            Swal.fire("Error de Ejecución", "Hubo un problema al subir el archivo: " + e, "error");
+          }
         }).CargarPolizaBrokerYInmobiliaria(formData, fileData);
       };
 
       reader.onerror = function () {
-        $("#overlay").hide();
+        Swal.close();
         $("#ButtonEnviarContratoFirmaModal2").prop("disabled", false);
         $("#ButtonEnviarSoloPolizaFirmaModal2").prop("disabled", false);
         Swal.fire("Error", "No se pudo leer el archivo localmente.", "error");
@@ -3299,80 +3298,75 @@ window.cancelado = function () {
       reader.readAsDataURL(file);
     });
 
-    function FinalizarValidacionBrokersYInmobiliarias(IdFilePoliza) {
+    function FinalizarValidacionBrokersYInmobiliarias(IdFilePoliza, numPoliza) {
       var IdContrato = $("#IdContratoFinalModal2").val();
       var Ref = $("#Ref_Solicitud_Cliente_Modal2").text();
       var TipoEnvio = $("#TipoEnvioPolizaModal2").val();
       google.script.run.withSuccessHandler(function () {
-        TableRender.clear().destroy();
-        $("#overlay_Modal2").hide();
-        $("#CardValidationDocsSuccess2").prop("hidden", true);
-        $("#CardValidationProceduresPropertySuccess2").prop("hidden", true);
-        $("#CardValidationDocsError2").prop("hidden", true);
-        $("#CardValidationProceduresPropertyError2").prop("hidden", true);
-        $("#CardValidationIAError2").prop("hidden", true);
-        $("#DivSelectDeudoresModal2").prop("hidden", false);
-        $("#SelectDeudoresModal2").val("");
-        $("#DivDeudoresModal2").empty();
-        $("#Card_OnboardingChat2").show();
-        $("#Card_ChatAIModal2").hide();
-        $("#CheckSinIA2").prop("checked", false);
-        $("#ButtonEnviarContratoFirmaModal2").prop("hidden", true);
-        $("#FormCargarPolizaModal2")[0].reset();
-        $("#FormCargarPolizaModal2").prop("hidden", true);
-        $("#DatosContratoModal2").prop("hidden", true);
-        $("#DivResultModelIAModal2").prop("hidden", false);
-        $("#SelectGestionCasoValidarDocsModal2").val("");
-        $("#DatosContratoModal2").prop("hidden", false);
-        $("#DivResultModelIAModal2").prop("hidden", false);
-        $("#DivDatosCompletarContrato").prop("hidden", true);
-        $("#FormCargarPolizaModal2").prop("hidden", true);
-        $("#FormCargarPolizaModal2").css({ "margin-top": "0px" });
-        $("#ButtonCompletarContratoModal2").prop("hidden", true);
-        $("#ButtonEnviarSoloPolizaFirmaModal2").prop("hidden", true);
-        $("#ButtonEditarContrato2").prop("hidden", true);
-        $("#SelectValidarResultIA2").val("");
-        $("#DivSelectValidarResultIA2").hide();
-        $("#DivSelectGestionCasoValidarDocs2").hide();
-        google.script.run.withSuccessHandler(CreatePendingTableBrokersInmobiliarias).withFailureHandler(function (e) {
-          if (String(e).includes("NetworkError")) {
-            Swal.fire({
-              title: 'Error de Conexión',
-              icon: 'error',
-              html: 'Verifica la conexión a internet.',
-              showCancelButton: false,
-              confirmButtonText: "Cerrar"//&nbsp;<i class="bi bi-x-circle-fill"></i>,
-            });
-          } else {
-            Swal.fire({
-              title: 'Error de Ejecución',
-              icon: 'error',
-              html: 'Presentamos fallas en este momento, estamos trabajando para solucionarlo lo más pronto posible.',
-              showCancelButton: false,
-              confirmButtonText: "Cerrar"//&nbsp;<i class="bi bi-x-circle-fill"></i>,
-            });
-          }
-          $("#overlay").hide();
-        }).GetDataBrokersYInmobiliarias();
+        Swal.close();
+        Swal.fire({
+          title: "Contrato Enviado",
+          html: 'El correo con el contrato fue enviado correctamente al cliente.<br><br><strong>Póliza N°: ' + numPoliza + '</strong>',
+          icon: "success",
+          confirmButtonText: "OK",
+          allowOutsideClick: false
+        }).then(function () {
+          TableRender.clear().destroy();
+          $("#overlay_Modal2").hide();
+          $("#CardValidationDocsSuccess2").prop("hidden", true);
+          $("#CardValidationProceduresPropertySuccess2").prop("hidden", true);
+          $("#CardValidationDocsError2").prop("hidden", true);
+          $("#CardValidationProceduresPropertyError2").prop("hidden", true);
+          $("#CardValidationIAError2").prop("hidden", true);
+          $("#DivSelectDeudoresModal2").prop("hidden", false);
+          $("#SelectDeudoresModal2").val("");
+          $("#DivDeudoresModal2").empty();
+          $("#Card_OnboardingChat2").show();
+          $("#Card_ChatAIModal2").hide();
+          $("#CheckSinIA2").prop("checked", false);
+          $("#ButtonEnviarContratoFirmaModal2").prop("hidden", true);
+          $("#FormCargarPolizaModal2")[0].reset();
+          $("#FormCargarPolizaModal2").prop("hidden", true);
+          $("#DatosContratoModal2").prop("hidden", true);
+          $("#DivResultModelIAModal2").prop("hidden", false);
+          $("#SelectGestionCasoValidarDocsModal2").val("");
+          $("#DatosContratoModal2").prop("hidden", false);
+          $("#DivResultModelIAModal2").prop("hidden", false);
+          $("#DivDatosCompletarContrato").prop("hidden", true);
+          $("#FormCargarPolizaModal2").prop("hidden", true);
+          $("#FormCargarPolizaModal2").css({ "margin-top": "0px" });
+          $("#ButtonCompletarContratoModal2").prop("hidden", true);
+          $("#ButtonEnviarSoloPolizaFirmaModal2").prop("hidden", true);
+          $("#ButtonEditarContrato2").prop("hidden", true);
+          $("#SelectValidarResultIA2").val("");
+          $("#DivSelectValidarResultIA2").hide();
+          $("#DivSelectGestionCasoValidarDocs2").hide();
+          google.script.run.withSuccessHandler(CreatePendingTableBrokersInmobiliarias).withFailureHandler(function (e) {
+            if (String(e).includes("NetworkError")) {
+              Swal.fire({
+                title: 'Error de Conexión',
+                icon: 'error',
+                html: 'Verifica la conexión a internet.',
+                showCancelButton: false,
+                confirmButtonText: "Cerrar"
+              });
+            } else {
+              Swal.fire({
+                title: 'Error de Ejecución',
+                icon: 'error',
+                html: 'Presentamos fallas en este momento, estamos trabajando para solucionarlo lo más pronto posible.',
+                showCancelButton: false,
+                confirmButtonText: "Cerrar"
+              });
+            }
+            $("#overlay").hide();
+          }).GetDataBrokersYInmobiliarias();
+        });
       }).withFailureHandler(function (e) {
-        if (String(e).includes("NetworkError")) {
-          Swal.fire({
-            title: 'Error de Conexión',
-            icon: 'error',
-            html: 'Verifica la conexión a internet.',
-            showCancelButton: false,
-            confirmButtonText: "Cerrar"//&nbsp;<i class="bi bi-x-circle-fill"></i>,
-          });
-        } else {
-          Swal.fire({
-            title: 'Error de Ejecución',
-            icon: 'error',
-            html: 'Presentamos fallas en este momento, estamos trabajando para solucionarlo lo más pronto posible.',
-            showCancelButton: false,
-            confirmButtonText: "Cerrar"//&nbsp;<i class="bi bi-x-circle-fill"></i>,
-          });
-        }
-        $("#overlay").hide();
+        Swal.close();
+        Swal.fire("Error al Enviar", "No se pudo enviar el correo con el contrato. Por favor intenta nuevamente.", "error");
+        $("#ButtonEnviarContratoFirmaModal2").prop("disabled", false);
+        $("#ButtonEnviarSoloPolizaFirmaModal2").prop("disabled", false);
       }).EnviarContratoFirmaBrokerYInmobiliaria(IdContrato, Ref, IdFilePoliza, TipoEnvio);
     }
 
