@@ -382,6 +382,8 @@ function processAnalystDecision(payload) {
           }
         } catch (err) {
           console.error(`🔥 Error copiando Drive File (${key}): ${err.toString()}`);
+          // Si no se puede copiar, conservar la URL original — el archivo ya existe en Drive
+          if (meta.url) urlsFinales[key + 'URL'] = meta.url;
         }
       }
     }
@@ -393,10 +395,14 @@ function processAnalystDecision(payload) {
           var numPolizaRenov = ocrPolizas(idPolizaRenov);
           urlsFinales.numPolizaEmitida = numPolizaRenov;
 
-          var dataCorretaje = SheetWareHouseCorretaje.getDataRange().getDisplayValues();
+          var dataCorretaje = sheet.getDataRange().getDisplayValues();
           for (var i = 1; i < dataCorretaje.length; i++) {
             if (String(dataCorretaje[i][1]).indexOf(poliza) !== -1) {
-              SheetWareHouseCorretaje.getRange(i + 1, 6).setValue(numPolizaRenov);
+              var cellJson = sheet.getRange(i + 1, 6);
+              var jsonExistente = {};
+              try { jsonExistente = JSON.parse(cellJson.getValue()); } catch (ep) { jsonExistente = {}; }
+              jsonExistente.numPolizaEmitida = numPolizaRenov;
+              cellJson.setValue(JSON.stringify(jsonExistente));
               break;
             }
           }
@@ -589,6 +595,7 @@ function GetDataUser() {
 
   // ── SECCIÓN RENOVACIONES ────────────────────────────────────
   if (Roles.includes("Analista Renovaciones")) {
+    SpreadsheetApp.flush();
     let dataUpd = Renovaciones.getRange("A2:H" + Renovaciones.getLastRow()).getDisplayValues();
 
     let misRegistros = dataUpd.filter(row =>

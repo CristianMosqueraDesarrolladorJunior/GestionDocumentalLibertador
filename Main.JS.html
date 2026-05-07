@@ -605,7 +605,7 @@
       var foot = '<p style="font-size: 12px; color: #adb5bd; margin-top: 24px;">' + P('FECHA_ENVIO') + '</p></body></html>';
       if (tipoAccion === 'CORRECTION') {
         return head +
-          '<div style="border-bottom: 4px solid #fd7e14; padding-bottom: 12px; margin-bottom: 20px;"><strong style="color: #003366; font-size: 18px;">Seguros Bolívar · El Libertador</strong>' +
+          '<div style="border-bottom: 4px solid #fd7e14; padding-bottom: 12px; margin-bottom: 20px;"><strong style="color: #003366; font-size: 18px;">Seguros Bolívar · Agencia de Seguros Proyectiva</strong>' +
           '<div style="color: #636e72; font-size: 13px; margin-top: 4px;">Solicitud de correcciones en documentación</div></div>' +
           '<p>El analista de renovaciones ha <strong style="color: #fd7e14;">devuelto el trámite</strong> para corrección de documentos o información.</p>' +
           '<table style="width: 100%; border-collapse: collapse; font-size: 14px; margin: 16px 0;">' +
@@ -619,7 +619,7 @@
       }
       if (tipoAccion === 'CANCELADA') {
         return head +
-          '<div style="border-bottom: 4px solid #dc3545; padding-bottom: 12px; margin-bottom: 20px;"><strong style="color: #003366; font-size: 18px;">Seguros Bolívar · El Libertador</strong>' +
+          '<div style="border-bottom: 4px solid #dc3545; padding-bottom: 12px; margin-bottom: 20px;"><strong style="color: #003366; font-size: 18px;">Seguros Bolívar · Agencia de Seguros Proyectiva</strong>' +
           '<div style="color: #636e72; font-size: 13px; margin-top: 4px;">Renovación no procede / caso declinado</div></div>' +
           '<p>Se informa que la <strong style="color: #dc3545;">renovación de póliza no podrá continuar</strong> (imposible renovar / declinado) según la gestión del analista.</p>' +
           '<table style="width: 100%; border-collapse: collapse; font-size: 14px; margin: 16px 0;">' +
@@ -632,7 +632,7 @@
           '<p style="font-size: 13px; color: #636e72;">Este mensaje fue enviado tras confirmación manual del analista en el CRM.</p>' + foot;
       }
       return head +
-        '<div style="border-bottom: 4px solid #E60000; padding-bottom: 12px; margin-bottom: 20px;"><strong style="color: #003366; font-size: 18px;">Seguros Bolívar · El Libertador</strong>' +
+        '<div style="border-bottom: 4px solid #E60000; padding-bottom: 12px; margin-bottom: 20px;"><strong style="color: #003366; font-size: 18px;">Seguros Bolívar · Agencia de Seguros Proyectiva</strong>' +
         '<div style="color: #636e72; font-size: 13px; margin-top: 4px;">Notificación de renovación de póliza de arrendamiento</div></div>' +
         '<p>Se informa que la gestión de <strong>renovación de póliza</strong> ha sido <strong style="color: #198754;">aprobada y expedida</strong> desde el CRM de analistas.</p>' +
         '<table style="width: 100%; border-collapse: collapse; font-size: 14px; margin: 16px 0;">' +
@@ -5532,7 +5532,7 @@ window.ReloadRenovacionesTable = function() {
                 }
 
                 // 1. Actualizar la variable Global con la nueva data fresca de BD
-                window.DataRenovacionesGlobal = Data[1];
+                window.DataRenovacionesGlobal = Data[1].renovaciones || Data[1];
 
                 // 2. Extraer los arrays actualizados
                 let pendientes = window.DataRenovacionesGlobal.pendientes || [];
@@ -5550,10 +5550,11 @@ window.ReloadRenovacionesTable = function() {
                 $("#kpiAnaRenovadas").text(renovadas.length);
 
                 // 4. DESTRUIR Y LIMPIAR LA TABLA (Requisito explícito)
-                if ($.fn.DataTable.isDataTable('#Table_Renovaciones')) {
-                    $('#Table_Renovaciones').DataTable().destroy();
-                    $('#Table_Renovaciones tbody').empty(); // Limpieza extra del DOM
+                if (window.TableRenovacionesRender) {
+                    window.TableRenovacionesRender.clear().destroy();
+                    window.TableRenovacionesRender = null;
                 }
+                $('#Table_Renovaciones').empty();
 
                 // 5. RENDERIZAR DE NUEVO
                 // Por defecto cargamos la vista de "Pendientes" tras una acción para que el usuario siga trabajando
