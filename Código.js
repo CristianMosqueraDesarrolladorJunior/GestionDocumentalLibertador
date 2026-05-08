@@ -68,37 +68,118 @@ function findDriveFolderByRef(ref) {
   return null;
 }
 
-function getPolicyFiles(policyRef) {
-  // 1. Validación de entrada
+
+/**
+ * Busca una póliza en SheetConsolidadoBrokersYInmobiliarias (columnas BI y BB)
+ * y retorna la carpeta de Drive referenciada en la columna AY de esa fila.
+ * @param {string} poliza - Número de póliza a buscar
+ * @returns {{found: boolean, folder?: Folder, fila?: number}} Resultado de la búsqueda
+ */
+function resolverCarpetaBrokerInmobiliaria_(poliza) {
+  if (!poliza) return { found: false };
+  var cleanPoliza = String(poliza).trim();
+  if (!cleanPoliza) return { found: false };
+
+  try {
+    var fila = null;
+
+    // 1. Buscar en columna BI (index 61 = número de póliza emitida)
+    var finderBI = SheetConsolidadoBrokersYInmobiliarias.getRange("BI2:BI")
+      .createTextFinder(cleanPoliza)
+      .matchEntireCell(true)
+      .findNext();
+    if (finderBI) {
+      fila = finderBI.getRow();
+    }
+
+    // 2. Si no se encontró en BI, buscar en columna BB (index 54 = observaciones/referencia)
+    if (!fila) {
+      var finderBB = SheetConsolidadoBrokersYInmobiliarias.getRange("BB2:BB")
+        .createTextFinder(cleanPoliza)
+        .findNext();
+      if (finderBB) {
+        fila = finderBB.getRow();
+      }
+    }
+
+    if (!fila) return { found: false };
+
+    // 3. Obtener URL de carpeta desde columna AY
+    var folderUrl = SheetConsolidadoBrokersYInmobiliarias.getRange("AY" + fila).getDisplayValue();
+    if (!folderUrl || !String(folderUrl).includes("/folders/")) {
+      console.warn("resolverCarpetaBrokerInmobiliaria_: URL de carpeta vacía o inválida en fila " + fila);
+      return { found: false };
+    }
+
+    // 4. Extraer folder ID y abrir carpeta
+    var folderId = String(folderUrl).split("/folders/")[1];
+    if (folderId && folderId.includes("?")) {
+      folderId = folderId.split("?")[0];
+    }
+    if (!folderId) return { found: false };
+
+    var folder = retry(function() { return DriveApp.getFolderById(folderId); });
+    return { found: true, folder: folder, fila: fila };
+
+  } catch (e) {
+    console.error("resolverCarpetaBrokerInmobiliaria_ error: " + e.toString());
+    return { found: false };
+  }
+}
+
+
+function getPolicyFiles(policyRef, segmento) {
   if (!policyRef) {
     return { success: false, message: "Referencia vacía enviada al servidor." };
   }
 
   try {
-    console.log("🔍 [1/4] Iniciando búsqueda para:", policyRef);
+    console.log("🔍 [1/4] Iniciando búsqueda para:", policyRef, "| Segmento:", segmento);
 
-    const resolution = resolveClientReference(policyRef);
-    let targetRef = resolution.ref;
+    // 1. Normalizar segmento
+    var segNorm = normalizeSegmentoRenovacion_({ segmento: segmento }, null);
+    var clientFolder = null;
 
-    if (!resolution.found) {
-      console.warn("⚠️ Referencia no encontrada en BD, usando política como fallback.");
-      targetRef = policyRef;
+    // 2. Routing por segmento con switch/case
+    switch (segNorm) {
+      case "BROKER":
+      case "INMOBILIARIA":
+        // Buscar carpeta en SheetConsolidadoBrokersYInmobiliarias (columna AY)
+        var brokerResult = resolverCarpetaBrokerInmobiliaria_(policyRef);
+        if (brokerResult.found) {
+          console.log("📂 Carpeta " + segNorm + " encontrada para:", policyRef);
+          clientFolder = brokerResult.folder;
+        } else {
+          console.warn("⚠️ Póliza no encontrada en hoja Brokers/Inmobiliarias para:", policyRef);
+        }
+        break;
+
+      case "PROPIETARIO":
+      default:
+        // Flujo Propietario: buscar referencia en SheetConsolidado/PolizasAntiguas y luego carpeta en Drive raíz
+        var resolution = resolveClientReference(policyRef);
+        var targetRef = resolution.found ? resolution.ref : policyRef;
+        if (!resolution.found) {
+          console.warn("⚠️ Referencia no encontrada en BD, usando póliza como fallback.");
+        }
+        clientFolder = findDriveFolderByRef(targetRef);
+        break;
     }
 
-    const clientFolder = findDriveFolderByRef(targetRef); // Asumo que tienes esta función auxiliar
-
+    // 3. Validar que se encontró la carpeta
     if (!clientFolder) {
-      console.error("❌ Carpeta no encontrada para:", targetRef);
+      console.error("❌ Carpeta no encontrada para:", policyRef, "| Segmento:", segNorm);
       return { success: false, message: "Carpeta no encontrada en Drive", files: [] };
     }
 
-    let filesFound = [];
+    // 4. Escanear archivos en la carpeta encontrada
+    var filesFound = [];
 
-    const scanFolder = (folder, contextName) => {
+    var scanFolder = function(folder, contextName) {
       if (!folder) return;
-      const files = folder.getFiles();
+      var files = folder.getFiles();
       while (files.hasNext()) {
-        let f = files.next();
+        var f = files.next();
         filesFound.push({
           id: f.getId(),
           name: f.getName(),
@@ -112,16 +193,16 @@ function getPolicyFiles(policyRef) {
     };
 
     scanFolder(clientFolder, 'General (Raíz)');
-    const subFolders = clientFolder.getFolders();
+    var subFolders = clientFolder.getFolders();
     while (subFolders.hasNext()) {
-      let sub = subFolders.next();
-      let name = sub.getName().toLowerCase();
+      var sub = subFolders.next();
+      var name = sub.getName().toLowerCase();
 
       if (name.includes("renova")) {
         scanFolder(sub, 'Renovaciones');
-        let deepSubs = sub.getFolders();
+        var deepSubs = sub.getFolders();
         while (deepSubs.hasNext()) {
-          let deep = deepSubs.next();
+          var deep = deepSubs.next();
           if (deep.getName().toLowerCase().includes("especial")) {
             scanFolder(deep, 'Procesos Especiales');
           }
@@ -129,7 +210,7 @@ function getPolicyFiles(policyRef) {
       }
     }
 
-    console.log(`[4/4] Búsqueda finalizada. Archivos: ${filesFound.length}`);
+    console.log("[4/4] Búsqueda finalizada. Archivos: " + filesFound.length);
 
     return {
       success: true,
@@ -145,32 +226,55 @@ function getPolicyFiles(policyRef) {
 }
 
 
-function buscarCarpetaYGuardarArchivos(archivosBase64, datos, ref) {
-  const rootId = "1e05FPKAfrRnqBbUpOF1JP9ostCg2TsjC";
-  const rootFolder = retry(() => DriveApp.getFolderById(rootId));
-  const urlsNuevas = {};
+function buscarCarpetaYGuardarArchivos(archivosBase64, datos, ref, segmento) {
+  // 1. Normalizar segmento
+  var segNorm = normalizeSegmentoRenovacion_({ segmento: segmento }, null);
+  var carpetaCliente = null;
+  var urlsNuevas = {};
 
-  const iteradorCandidatos = rootFolder.searchFolders(`title contains '${ref}' and trashed = false`);
-  let carpetaCliente = null;
-
-  while (iteradorCandidatos.hasNext()) {
-    let candidato = iteradorCandidatos.next();
-    let nombre = candidato.getName();
-    if (nombre.includes(ref)) {
-      carpetaCliente = candidato;
+  // 2. Routing por segmento
+  switch (segNorm) {
+    case "BROKER":
+    case "INMOBILIARIA":
+      // Buscar carpeta en SheetConsolidadoBrokersYInmobiliarias (columna AY)
+      var polizaBuscar = (datos && datos.poliza) ? datos.poliza : ref;
+      var brokerResult = resolverCarpetaBrokerInmobiliaria_(polizaBuscar);
+      if (brokerResult.found) {
+        carpetaCliente = brokerResult.folder;
+      } else {
+        console.warn("buscarCarpetaYGuardarArchivos: Segmento " + segNorm + " pero póliza no encontrada. Sin carpeta destino.");
+        return urlsNuevas;
+      }
       break;
-    }
+
+    case "PROPIETARIO":
+    default:
+      // Flujo Propietario: buscar carpeta en Drive raíz por referencia
+      var rootId = "1e05FPKAfrRnqBbUpOF1JP9ostCg2TsjC";
+      var rootFolder = retry(function() { return DriveApp.getFolderById(rootId); });
+      var iteradorCandidatos = rootFolder.searchFolders("title contains '" + ref + "' and trashed = false");
+
+      while (iteradorCandidatos.hasNext()) {
+        var candidato = iteradorCandidatos.next();
+        var nombre = candidato.getName();
+        if (nombre.includes(ref)) {
+          carpetaCliente = candidato;
+          break;
+        }
+      }
+      break;
   }
 
   if (!carpetaCliente) {
     return urlsNuevas;
   }
 
-  let carpetaRenovacion = null;
-  const subCarpetas = carpetaCliente.getFolders();
+  // 3. Buscar o crear subcarpeta "Renovacion"
+  var carpetaRenovacion = null;
+  var subCarpetas = carpetaCliente.getFolders();
 
   while (subCarpetas.hasNext()) {
-    let sub = subCarpetas.next();
+    var sub = subCarpetas.next();
     if (sub.getName().toLowerCase().includes("renova")) {
       carpetaRenovacion = sub;
       break;
@@ -244,79 +348,47 @@ function extraerIdGoogleDrive(url) {
 }
 
 
-function obtenerCarpetaRenovacionPorPoliza(poliza, documento, asegurado) {
-  const rootId = "1e05FPKAfrRnqBbUpOF1JP9ostCg2TsjC"; // TU ID RAÍZ
-  const rootFolder = retry(() => DriveApp.getFolderById(rootId));
-  let ref = null;
-  if (SheetConsolidado) {
-    let finderEspejo = SheetConsolidado.getRange("BE2:BE").createTextFinder(poliza).matchEntireCell(true).findNext();
-    if (finderEspejo) {
-      let row = finderEspejo.getRow();
-      ref = SheetConsolidado.getRange(row, 2).getDisplayValue();
-      console.log(`Referencia encontrada en Espejo para póliza ${poliza}: ${ref}`);
-    }
-  }
+function obtenerCarpetaRenovacionPorPoliza(poliza, documento, asegurado, segmento) {
+  // 1. Normalizar segmento
+  var segNorm = normalizeSegmentoRenovacion_({ segmento: segmento }, null);
+  var carpetaCliente = null;
+  var ref = null;
 
-  if (!ref || ref.trim() === "") {
-    if (PolizasAntiguas) {
-      let finderAntiguas = PolizasAntiguas.getRange("C2:C").createTextFinder(poliza).matchEntireCell(true).findNext();
-      if (finderAntiguas) {
-        let row = finderAntiguas.getRow();
-        ref = PolizasAntiguas.getRange(row, 2).getDisplayValue();
-        console.log(`Referencia encontrada en PolizasAntiguas para póliza ${poliza}: ${ref}`);
+  // 2. Routing por segmento
+  switch (segNorm) {
+    case "BROKER":
+    case "INMOBILIARIA":
+      // Buscar carpeta en SheetConsolidadoBrokersYInmobiliarias (columna AY)
+      var brokerResult = resolverCarpetaBrokerInmobiliaria_(poliza);
+      if (brokerResult.found) {
+        carpetaCliente = brokerResult.folder;
+        ref = poliza;
+        console.log("Carpeta " + segNorm + " encontrada para póliza " + poliza);
+      } else {
+        console.warn("Segmento es " + segNorm + " pero póliza no encontrada en SheetConsolidadoBrokersYInmobiliarias. Usando flujo propietario como fallback.");
+        // Fallback a propietario si no se encuentra
+        carpetaCliente = _resolverCarpetaPropietario_(poliza, documento, asegurado);
+        ref = poliza;
       }
-    }
-  }
-
-  // C. Si no existe en ninguna, CREAR NUEVA REFERENCIA
-  if (!ref || ref.trim() === "") {
-    // Usar documento si existe, sino poliza como fallback para la referencia
-    const baseRef = documento || poliza;
-    ref = "Ref" + baseRef;
-    const fechaActual = new Date();
-    if (PolizasAntiguas) {
-      PolizasAntiguas.appendRow([
-        fechaActual,
-        ref,
-        poliza,
-        asegurado
-      ]);
-      console.log(`Nueva referencia creada y registrada en PolizasAntiguas: ${ref}`);
-    } else {
-      console.error("Hoja PolizasAntiguas no encontrada. No se pudo guardar la referencia.");
-    }
-  }
-
-  // 2. GESTIÓN DE CARPETAS DRIVE (Usando la Ref encontrada/creada)
-  // ----------------------------------------------------------------
-  let carpetaCliente = null;
-
-  // Buscar carpeta existente por nombre exacto o que contenga la referencia
-  const iterador = rootFolder.searchFolders(`title contains '${ref}' and trashed = false`);
-
-  while (iterador.hasNext()) {
-    let folder = iterador.next();
-    let nombre = folder.getName();
-
-    // Verificación estricta o regex para asegurar coincidencia
-    if (nombre.trim() === String(ref).trim() || new RegExp(`\\b${ref}\\b`, 'i').test(nombre)) {
-      carpetaCliente = folder;
       break;
-    }
+
+    case "PROPIETARIO":
+    default:
+      // Flujo Propietario: buscar/crear carpeta en Drive raíz
+      carpetaCliente = _resolverCarpetaPropietario_(poliza, documento, asegurado);
+      break;
   }
 
-  // Si no existe la carpeta del cliente, la creamos
   if (!carpetaCliente) {
-    carpetaCliente = rootFolder.createFolder(ref + " - " + (asegurado || "Cliente"));
-    console.log(`Carpeta raíz creada: ${carpetaCliente.getName()}`);
+    console.error("No se pudo resolver carpeta para póliza: " + poliza + " | Segmento: " + segNorm);
+    return { carpeta: null, referencia: null, url: null };
   }
 
-  // Buscar o crear subcarpeta "Renovacion"
-  let carpetaRenovacion = null;
-  const subIter = carpetaCliente.getFolders();
+  // 3. Buscar o crear subcarpeta "Renovacion"
+  var carpetaRenovacion = null;
+  var subIter = carpetaCliente.getFolders();
   while (subIter.hasNext()) {
-    let sub = subIter.next();
-    // Búsqueda flexible para "Renovacion", "Renovaciones", etc.
+    var sub = subIter.next();
     if (sub.getName().toLowerCase().includes("renova")) {
       carpetaRenovacion = sub;
       break;
@@ -325,14 +397,85 @@ function obtenerCarpetaRenovacionPorPoliza(poliza, documento, asegurado) {
 
   if (!carpetaRenovacion) {
     carpetaRenovacion = carpetaCliente.createFolder("Renovacion");
-    console.log("Subcarpeta Renovacion creada");
+    console.log("Subcarpeta Renovacion creada para segmento: " + segNorm);
   }
 
   return {
     carpeta: carpetaRenovacion,
-    referencia: ref,
+    referencia: ref || poliza,
     url: carpetaRenovacion.getUrl()
   };
+}
+
+
+/**
+ * Resuelve la carpeta del cliente propietario en Drive (lógica original).
+ * Busca referencia en SheetConsolidado → PolizasAntiguas → crea nueva si no existe.
+ * @param {string} poliza - Número de póliza
+ * @param {string} documento - Documento del cliente
+ * @param {string} asegurado - Nombre del asegurado
+ * @returns {Folder|null} Carpeta del cliente en Drive
+ */
+function _resolverCarpetaPropietario_(poliza, documento, asegurado) {
+  var rootId = "1e05FPKAfrRnqBbUpOF1JP9ostCg2TsjC";
+  var rootFolder = retry(function() { return DriveApp.getFolderById(rootId); });
+  var ref = null;
+
+  // A. Buscar referencia en SheetConsolidado
+  if (SheetConsolidado) {
+    var finderEspejo = SheetConsolidado.getRange("BE2:BE").createTextFinder(poliza).matchEntireCell(true).findNext();
+    if (finderEspejo) {
+      var row = finderEspejo.getRow();
+      ref = SheetConsolidado.getRange(row, 2).getDisplayValue();
+      console.log("Referencia encontrada en Espejo para póliza " + poliza + ": " + ref);
+    }
+  }
+
+  // B. Buscar en PolizasAntiguas
+  if (!ref || ref.trim() === "") {
+    if (PolizasAntiguas) {
+      var finderAntiguas = PolizasAntiguas.getRange("C2:C").createTextFinder(poliza).matchEntireCell(true).findNext();
+      if (finderAntiguas) {
+        var rowAnt = finderAntiguas.getRow();
+        ref = PolizasAntiguas.getRange(rowAnt, 2).getDisplayValue();
+        console.log("Referencia encontrada en PolizasAntiguas para póliza " + poliza + ": " + ref);
+      }
+    }
+  }
+
+  // C. Si no existe en ninguna, crear nueva referencia
+  if (!ref || ref.trim() === "") {
+    var baseRef = documento || poliza;
+    ref = "Ref" + baseRef;
+    var fechaActual = new Date();
+    if (PolizasAntiguas) {
+      PolizasAntiguas.appendRow([fechaActual, ref, poliza, asegurado]);
+      console.log("Nueva referencia creada y registrada en PolizasAntiguas: " + ref);
+    } else {
+      console.error("Hoja PolizasAntiguas no encontrada. No se pudo guardar la referencia.");
+    }
+  }
+
+  // D. Buscar carpeta existente por referencia
+  var carpetaCliente = null;
+  var iterador = rootFolder.searchFolders("title contains '" + ref + "' and trashed = false");
+
+  while (iterador.hasNext()) {
+    var folder = iterador.next();
+    var nombre = folder.getName();
+    if (nombre.trim() === String(ref).trim() || new RegExp("\\b" + ref + "\\b", "i").test(nombre)) {
+      carpetaCliente = folder;
+      break;
+    }
+  }
+
+  // E. Si no existe la carpeta del cliente, crearla
+  if (!carpetaCliente) {
+    carpetaCliente = rootFolder.createFolder(ref + " - " + (asegurado || "Cliente"));
+    console.log("Carpeta raíz creada: " + carpetaCliente.getName());
+  }
+
+  return carpetaCliente;
 }
 
 
@@ -352,7 +495,7 @@ function processAnalystDecision(payload) {
     const poliza = payload.dataLead.poliza;
     const documento = payload.dataLead.documento;
     const asegurado = payload.dataLead.asegurado;
-    const resultadoCarpeta = obtenerCarpetaRenovacionPorPoliza(poliza, documento, asegurado);
+    const resultadoCarpeta = obtenerCarpetaRenovacionPorPoliza(poliza, documento, asegurado, payload.segmento || (payload.dataLead && payload.dataLead.segmento));
     const carpetaRenovacion = resultadoCarpeta.carpeta;
 
     let urlsFinales = {};
@@ -474,7 +617,9 @@ function processAnalystDecision(payload) {
       historial.push({
         fecha: new Date().toISOString(),
         usuario: Session.getActiveUser().getEmail(),
-        observacion: payload.observations,
+        observacion: (nuevoEstado === "Expedido" && urlsFinales.numPolizaEmitida)
+          ? (payload.observations || "Renovación aprobada") + " | Póliza emitida: " + urlsFinales.numPolizaEmitida
+          : payload.observations,
         estado: nuevoEstado,
         accion: "GESTION_ANALISTA"
       });
@@ -2792,6 +2937,27 @@ function buildRenovacionCorreoPreviewPayload_(payload) {
     var ccMeta = _ccMetaDesdeCandidatos_(candidatos, extra);
 
     var poliza = String(dataLead.poliza != null ? dataLead.poliza : "");
+
+    // Obtener numPolizaEmitida: si no viene en dataLead, buscar en la hoja de Renovaciones
+    var numPolizaEmitida = dataLead.numPolizaEmitida || "";
+    if (!numPolizaEmitida && poliza) {
+      try {
+        var dataRenov = Renovaciones.getDataRange().getDisplayValues();
+        for (var ri = 1; ri < dataRenov.length; ri++) {
+          if (String(dataRenov[ri][1]).indexOf(poliza) !== -1) {
+            var jsonGestion = {};
+            try { jsonGestion = JSON.parse(dataRenov[ri][5]); } catch (ep) {}
+            if (jsonGestion.numPolizaEmitida) {
+              numPolizaEmitida = String(jsonGestion.numPolizaEmitida);
+            }
+            break;
+          }
+        }
+      } catch (eBusq) {
+        console.warn("No se pudo buscar numPolizaEmitida en Renovaciones: " + eBusq);
+      }
+    }
+
     var obsBase = payload.observations || payload.observaciones || "";
     var obs = payload.tipoAccionCorreo === "APPROVE"
       ? (payload.notasAnalista || obsBase || "")
@@ -2800,6 +2966,7 @@ function buildRenovacionCorreoPreviewPayload_(payload) {
 
     var vars = {
       POLIZA: _escapeHtmlRenovCorreo_(poliza),
+      POLIZA_EMITIDA: _escapeHtmlRenovCorreo_(numPolizaEmitida || "Pendiente"),
       ASEGURADO: _escapeHtmlRenovCorreo_(dataLead.asegurado || ""),
       DOCUMENTO: _escapeHtmlRenovCorreo_(dataLead.documento != null ? dataLead.documento : ""),
       SEGMENTO: _escapeHtmlRenovCorreo_(seg),

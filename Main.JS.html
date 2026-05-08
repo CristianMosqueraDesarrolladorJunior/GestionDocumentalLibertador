@@ -607,38 +607,36 @@
         return head +
           '<div style="border-bottom: 4px solid #fd7e14; padding-bottom: 12px; margin-bottom: 20px;"><strong style="color: #003366; font-size: 18px;">Seguros Bolívar · Agencia de Seguros Proyectiva</strong>' +
           '<div style="color: #636e72; font-size: 13px; margin-top: 4px;">Solicitud de correcciones en documentación</div></div>' +
-          '<p>El analista de renovaciones ha <strong style="color: #fd7e14;">devuelto el trámite</strong> para corrección de documentos o información.</p>' +
+          '<p>Se ha identificado que la documentación requiere <strong style="color: #fd7e14;">correcciones</strong> para continuar con el trámite de renovación.</p>' +
           '<table style="width: 100%; border-collapse: collapse; font-size: 14px; margin: 16px 0;">' +
           '<tr><td style="padding: 6px 0; color: #636e72;">Póliza</td><td style="padding: 6px 0;"><strong>' + P('POLIZA') + '</strong></td></tr>' +
           '<tr><td style="padding: 6px 0; color: #636e72;">Asegurado / Tomador</td><td style="padding: 6px 0;">' + P('ASEGURADO') + '</td></tr>' +
-          '<tr><td style="padding: 6px 0; color: #636e72;">Documento</td><td style="padding: 6px 0;">' + P('DOCUMENTO') + '</td></tr>' +
           '<tr><td style="padding: 6px 0; color: #636e72;">Segmento</td><td style="padding: 6px 0;">' + P('SEGMENTO') + '</td></tr></table>' +
           '<div style="background: #fff3cd; border-left: 4px solid #ffc107; padding: 12px 16px; margin: 16px 0;">' +
           '<div style="font-size: 12px; text-transform: uppercase; color: #856404; margin-bottom: 6px;">Motivo de la devolución</div><div>' + P('OBSERVACIONES') + '</div></div>' +
-          '<p style="font-size: 13px; color: #636e72;">Por favor gestionar las correcciones indicadas y volver a cargar la documentación en el flujo correspondiente.</p>' + foot;
+          '<p style="font-size: 13px; color: #636e72;">Por favor gestionar las correcciones indicadas y volver a cargar la documentación correspondiente.</p>' + foot;
       }
       if (tipoAccion === 'CANCELADA') {
         return head +
           '<div style="border-bottom: 4px solid #dc3545; padding-bottom: 12px; margin-bottom: 20px;"><strong style="color: #003366; font-size: 18px;">Seguros Bolívar · Agencia de Seguros Proyectiva</strong>' +
           '<div style="color: #636e72; font-size: 13px; margin-top: 4px;">Renovación no procede / caso declinado</div></div>' +
-          '<p>Se informa que la <strong style="color: #dc3545;">renovación de póliza no podrá continuar</strong> (imposible renovar / declinado) según la gestión del analista.</p>' +
+          '<p>Se informa que la <strong style="color: #dc3545;">renovación de póliza no podrá continuar</strong> según la revisión realizada.</p>' +
           '<table style="width: 100%; border-collapse: collapse; font-size: 14px; margin: 16px 0;">' +
           '<tr><td style="padding: 6px 0; color: #636e72;">Póliza</td><td style="padding: 6px 0;"><strong>' + P('POLIZA') + '</strong></td></tr>' +
           '<tr><td style="padding: 6px 0; color: #636e72;">Asegurado / Tomador</td><td style="padding: 6px 0;">' + P('ASEGURADO') + '</td></tr>' +
-          '<tr><td style="padding: 6px 0; color: #636e72;">Documento</td><td style="padding: 6px 0;">' + P('DOCUMENTO') + '</td></tr>' +
           '<tr><td style="padding: 6px 0; color: #636e72;">Segmento</td><td style="padding: 6px 0;">' + P('SEGMENTO') + '</td></tr></table>' +
           '<div style="background: #f8d7da; border-left: 4px solid #dc3545; padding: 12px 16px; margin: 16px 0;">' +
           '<div style="font-size: 12px; text-transform: uppercase; color: #721c24; margin-bottom: 6px;">Motivo</div><div>' + P('OBSERVACIONES') + '</div></div>' +
-          '<p style="font-size: 13px; color: #636e72;">Este mensaje fue enviado tras confirmación manual del analista en el CRM.</p>' + foot;
+          '<p style="font-size: 13px; color: #636e72;">Este mensaje es informativo. Si tiene alguna consulta, comuníquese con su asesor.</p>' + foot;
       }
       return head +
         '<div style="border-bottom: 4px solid #E60000; padding-bottom: 12px; margin-bottom: 20px;"><strong style="color: #003366; font-size: 18px;">Seguros Bolívar · Agencia de Seguros Proyectiva</strong>' +
         '<div style="color: #636e72; font-size: 13px; margin-top: 4px;">Notificación de renovación de póliza de arrendamiento</div></div>' +
-        '<p>Se informa que la gestión de <strong>renovación de póliza</strong> ha sido <strong style="color: #198754;">aprobada y expedida</strong> desde el CRM de analistas.</p>' +
+        '<p>Se informa que la <strong>renovación de póliza</strong> ha sido <strong style="color: #198754;">aprobada y expedida</strong> exitosamente.</p>' +
         '<table style="width: 100%; border-collapse: collapse; font-size: 14px; margin: 16px 0;">' +
         '<tr><td style="padding: 6px 0; color: #636e72;">Póliza</td><td style="padding: 6px 0;"><strong>' + P('POLIZA') + '</strong></td></tr>' +
+        '<tr><td style="padding: 6px 0; color: #636e72;">Póliza Renovada</td><td style="padding: 6px 0;"><strong>' + P('POLIZA_EMITIDA') + '</strong></td></tr>' +
         '<tr><td style="padding: 6px 0; color: #636e72;">Asegurado / Tomador</td><td style="padding: 6px 0;">' + P('ASEGURADO') + '</td></tr>' +
-        '<tr><td style="padding: 6px 0; color: #636e72;">Documento</td><td style="padding: 6px 0;">' + P('DOCUMENTO') + '</td></tr>' +
         '<tr><td style="padding: 6px 0; color: #636e72;">Segmento</td><td style="padding: 6px 0;">' + P('SEGMENTO') + '</td></tr></table>' +
         '<div style="background: #f8f9fa; border-radius: 8px; padding: 12px 16px; margin: 16px 0;">' +
         '<div style="font-size: 12px; text-transform: uppercase; color: #636e72; margin-bottom: 6px;">Notas del analista</div><div>' + P('NOTAS') + '</div></div>' +
@@ -687,6 +685,7 @@
       var fechaStr = new Date().toISOString().slice(0, 16).replace('T', ' ');
       var vars = {
         POLIZA: poliza,
+        POLIZA_EMITIDA: dataLead.numPolizaEmitida || 'Pendiente',
         ASEGURADO: dataLead.asegurado || '',
         DOCUMENTO: dataLead.documento != null ? dataLead.documento : '',
         SEGMENTO: seg,
@@ -1272,7 +1271,8 @@ window.cancelado = function () {
           fechaIngreso: item.fechaIngreso || 'N/A',
           poliza: dataLead.poliza || 'N/A',
           asegurado: dataLead.asegurado || 'N/A',
-          canon: dataLead.canon || 0,
+          segmento: dataLead.segmento || item.etapaFunel || 'Sin segmento',
+          vencimiento: dataLead.vencimiento || 'N/A',
           estadoGestion: item.estadoGestion || 'N/A',
           documento: dataLead.documento || 'N/A',
           telefono: dataLead.celular || dataLead.telefono1 || 'N/A',
@@ -1308,14 +1308,12 @@ window.cancelado = function () {
               }
             },
             {
-              title: "Canon",
-              data: "canon",
-              render: function (data) {
-                if (typeof data === 'number' && data > 0) {
-                  return '$' + data.toLocaleString('es-CO');
-                }
-                return data;
-              }
+              title: "Segmento",
+              data: "segmento"
+            },
+            {
+              title: "Vencimiento",
+              data: "vencimiento"
             },
             {
               title: "Estado",
@@ -4131,6 +4129,7 @@ window.cancelado = function () {
   }
 
   var currentFullData = null; 
+var driveSearchCompleted = false;
 var docState = {
     poliza:       { file: null, url: null, approved: false },
     cedula:       { file: null, url: null, approved: false },
@@ -4471,6 +4470,7 @@ function OpenModalRenovacion(dataEncoded) {
         }
 
         currentClientDriveFiles = [];
+        driveSearchCompleted = false;
         
         // ==============================================================
         //  LÓGICA DIFERENCIAL (CORREGIDA Y SEGURA)
@@ -4552,7 +4552,9 @@ function OpenModalRenovacion(dataEncoded) {
 
             // 4. Buscar en Drive (Solo en modo pendiente)
             const policyRef = lead.poliza || lead.solicitud;
+            const segmentoParaBusqueda = (lead.segmento || jsonData.etapaFunel || '');
             google.script.run.withSuccessHandler(function(response) {
+                driveSearchCompleted = true;
                 let physicalFiles = (response && response.success) ? (response.files || []) : [];
                 let virtualFiles = (typeof extractEmbeddedFiles === 'function') ? extractEmbeddedFiles(currentFullData) : [];
                 currentClientDriveFiles = [...physicalFiles, ...virtualFiles];
@@ -4560,19 +4562,26 @@ function OpenModalRenovacion(dataEncoded) {
                 if (currentClientDriveFiles.length > 0) {
                     let msg = (physicalFiles.length === 0 && virtualFiles.length > 0) ? "Enlaces BD" : "Archivos encontrados";
                     Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: `${currentClientDriveFiles.length} ${msg}`, showConfirmButton: false, timer: 3000 });
+                } else {
+                    // No se encontraron documentos — informar claramente al usuario
+                    var errorMsg = (response && response.message) ? response.message : 'No se encontraron documentos en Drive';
+                    Swal.fire({ toast: true, position: 'top-end', icon: 'warning', title: errorMsg, showConfirmButton: false, timer: 4000 });
                 }
                 updateDriveAvailabilityUI();
                 calcularScore();
             }).withFailureHandler(function(error) {
+                driveSearchCompleted = true;
                 console.error("Fallo Drive:", error);
-                 try {
+                Swal.fire({ toast: true, position: 'top-end', icon: 'error', title: 'Error buscando documentos en Drive', showConfirmButton: false, timer: 4000 });
+                try {
                     let virtualFiles = extractEmbeddedFiles(currentFullData);
                     if(virtualFiles.length > 0){
                         currentClientDriveFiles = virtualFiles;
                         updateDriveAvailabilityUI();
                     }
                 } catch(e) {}
-            }).getPolicyFiles(policyRef);
+                calcularScore();
+            }).getPolicyFiles(policyRef, segmentoParaBusqueda);
 
             // 5. Restaurar Botones de Documentos
             DOC_KEYS.forEach(key => {
@@ -4597,10 +4606,18 @@ function OpenModalRenovacion(dataEncoded) {
 function updateDriveAvailabilityUI() {
     if (currentClientDriveFiles && currentClientDriveFiles.length > 0) {
         DOC_KEYS.forEach(key => {
-            $(`#card-${key} button.btn-primary`)
+            $(`#card-${key} button.btn-primary, #card-${key} button.btn-success`)
                 .removeClass('btn-primary')
-                .addClass('btn-success') // Cambia a verde para indicar "Conectado"
+                .addClass('btn-success')
                 .html('<i class="fab fa-google-drive me-1"></i>Smart Select');
+       });
+    } else {
+        // Sin documentos en Drive: restaurar botones a estado original (subir archivo)
+        DOC_KEYS.forEach(key => {
+            $(`#card-${key} button.btn-success`)
+                .removeClass('btn-success')
+                .addClass('btn-primary')
+                .html('<i class="fas fa-upload me-1"></i>Cargar archivo');
        });
     }
 }
@@ -4749,9 +4766,19 @@ function selectDriveFile(docType, url, name) {
       $badge.removeClass('status-pending status-approved').addClass('status-corrections')
         .html('<i class="fas fa-eye"></i><span>Validación Manual</span>');
     } else {
-      $msg.text(`Cargando documentos (${filesLoaded}/6)...`);
-      $badge.removeClass('status-approved status-corrections').addClass('status-pending')
-        .html('<i class="fas fa-spinner fa-spin"></i><span>Gestionando</span>');
+      if (driveSearchCompleted && currentClientDriveFiles.length === 0 && filesLoaded === 0) {
+        $msg.text('No se encontraron documentos en Drive. Cargue los archivos manualmente.');
+        $badge.removeClass('status-approved status-pending').addClass('status-corrections')
+          .html('<i class="fas fa-exclamation-triangle"></i><span>Sin documentos</span>');
+      } else if (driveSearchCompleted) {
+        $msg.text(`Documentos cargados (${filesLoaded}/6). Gestione los faltantes.`);
+        $badge.removeClass('status-approved status-corrections').addClass('status-pending')
+          .html('<i class="fas fa-tasks"></i><span>En gestión</span>');
+      } else {
+        $msg.text('Buscando documentos...');
+        $badge.removeClass('status-approved status-corrections').addClass('status-pending')
+          .html('<i class="fas fa-spinner fa-spin"></i><span>Buscando...</span>');
+      }
     }
   }
 
