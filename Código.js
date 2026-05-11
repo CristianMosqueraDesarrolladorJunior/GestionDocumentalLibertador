@@ -794,7 +794,7 @@ function GetDataUser() {
     });
 
     resultado.renovaciones = {
-      pendientes: todosMisLeads.filter(i => ["Enviar a Expedicion", "Autogestionado", "Caso Revisado"].includes(i.estadoGestion)),
+      pendientes: todosMisLeads.filter(i => ["Enviar a Expedicion", "Autogestionado", "Caso Revisado", "Pendiente por notificación"].includes(i.estadoGestion)),
       especiales: todosMisLeads.filter(i => i.estadoGestion === "Caso Especial"),
       renovadas: todosMisLeads.filter(i => ["Poliza Renovada", "Expedido"].includes(i.estadoGestion))
     };
@@ -3236,7 +3236,181 @@ function ejecutarPruebasAutomaticasCorreoRenovacion() {
 }
 
 /**
- * Envía el correo (solo tras aprobación manual en UI) y ejecuta processAnalystDecision.
+ * Persiste la gestión del analista sin enviar correo.
+ * Reutiliza la lógica de validación de probarCorreoRenovacionSinEnvio y la persistencia
+ * de processAnalystDecision, pero establece estado "Pendiente por notificación"
+ * y NO envía correo ni escribe en columna 9 (log de correo).
+ *
+ * @param {Object} payload - Mismo formato que procesarDecisionAnalistaConCorreo
+ * @returns {{ success: boolean, message: string }}
+ */
+function guardarGestionSinEnvio(payload) {
+  try {
+    // 1. Validar tipo de acción
+    var tipo = payload.tipoAccionCorreo || payload.decision;
+    if (tipo === "APPROVE") tipo = "APPROVE";
+    else if (tipo === "CORRECTION") tipo = "CORRECTION";
+    else if (tipo === "CANCELADA" || tipo === "CANCEL") tipo = "CANCELADA";
+
+    if (tipo !== "APPROVE" && tipo !== "CORRECTION" && tipo !== "CANCELADA") {
+      return { success: false, message: "Tipo de acción de correo no válido." };
+    }
+
+    var dataLead = payload.dataLead || {};
+    var poliza = dataLead.poliza || dataLead.solicitud;
+
+    // 2. Validar observaciones para CORRECTION/CANCELADA
+    if ((tipo === "CORRECTION" || tipo === "CANCELADA") && !(payload.observations && String(payload.observations).trim())) {
+      return { success: false, message: "Debe indicar observaciones / motivo." };
+    }
+
+    // 3. Validar pipeline de correo (destinatarios, HTML, asunto)
+    var prevIn = {
+      tipoAccionCorreo: tipo,
+      dataLead: dataLead,
+      leadSelect: payload.leadSelect,
+      segmentoSheetColumn: payload.segmentoSheetColumn,
+      emailAnalistaAsignado: payload.emailAnalistaAsignado,
+      observations: payload.observations,
+      notasAnalista: payload.notasAnalista,
+      correoAdicional1: payload.correoAdicional1,
+      correoAdicional2: payload.correoAdicional2,
+      ccSeleccionados: payload.ccSeleccionados
+    };
+    if (payload.segmento != null && String(payload.segmento).trim() !== "") {
+      prevIn.segmento = payload.segmento;
+    }
+    var preview = buildRenovacionCorreoPreviewPayload_(prevIn);
+    if (!preview.success) {
+      return { success: false, message: preview.message || "Error en validación del pipeline de correo." };
+    }
+
+    // 4. Validar adjuntos de correo (verificar que blobs se pueden generar)
+    var adjRes = _adjuntosRenovCorreoProcesar_(payload.emailAdjuntos || []);
+    if (payload.emailAdjuntos && payload.emailAdjuntos.length) {
+      var fallosAdj = adjRes.informe.filter(function (x) { return !x.ok; });
+      if (fallosAdj.length) {
+        return {
+          success: false,
+          message: "Adjuntos: " + fallosAdj.map(function (f) { return f.nombre + " — " + (f.error || "error"); }).join(" | ")
+        };
+      }
+    }
+
+    // 5. Guardar archivos en Drive (reutilizar helpers existentes)
+    var documento = dataLead.documento;
+    var asegurado = dataLead.asegurado;
+    var segmento = payload.segmento || (dataLead && dataLead.segmento);
+    var resultadoCarpeta = obtenerCarpetaRenovacionPorPoliza(poliza, documento, asegurado, segmento);
+    var carpetaRenovacion = resultadoCarpeta.carpeta;
+
+    if (!carpetaRenovacion) {
+      return { success: false, message: "No se pudo resolver la carpeta de Drive para la póliza." };
+    }
+
+    var urlsFinales = {};
+    if (payload.files && Object.keys(payload.files).length > 0) {
+      urlsFinales = guardarArchivosEnCarpeta(payload.files, dataLead, carpetaRenovacion);
+    }
+
+    if (payload.driveRefs && Object.keys(payload.driveRefs).length > 0) {
+      var mapaNombres = {
+        'sarlaft': 'SARLAFT',
+        'contrato': 'CONTRATO_ARR',
+        'poliza': 'POLIZA_RENOVADA',
+        'cedula': 'CEDULA_TOMADOR',
+        'comprobante': 'SOPORTE_PAGO',
+        'polizaAjuste': 'POLIZA_CON_AJUSTE'
+      };
+      for (var key in payload.driveRefs) {
+        if (!Object.prototype.hasOwnProperty.call(payload.driveRefs, key)) continue;
+        var meta = payload.driveRefs[key];
+        try {
+          var fileId = extraerIdGoogleDrive(meta.url);
+          if (fileId) {
+            var originalFile = retry(function () { return DriveApp.getFileById(fileId); });
+            var prefijo = mapaNombres[key] || key.toUpperCase();
+            var nombreOriginal = originalFile.getName();
+            var ext = nombreOriginal.includes('.') ? nombreOriginal.split('.').pop() : 'pdf';
+            var nuevoNombre = prefijo + "_" + poliza + "." + ext;
+            var existing = carpetaRenovacion.getFilesByName(nuevoNombre);
+            while (existing.hasNext()) { existing.next().setTrashed(true); }
+            var copy = originalFile.makeCopy(nuevoNombre, carpetaRenovacion);
+            urlsFinales[key + 'URL'] = copy.getUrl();
+          }
+        } catch (errDrive) {
+          console.error("guardarGestionSinEnvio driveRefs (" + key + "): " + errDrive);
+          if (meta.url) urlsFinales[key + 'URL'] = meta.url;
+        }
+      }
+    }
+
+    // 6. Encontrar fila en la hoja
+    var rowIndex = _findRenovacionRowByPoliza_(poliza);
+    if (rowIndex < 0) {
+      return { success: false, message: "No se encontró el registro en la hoja para la póliza: " + poliza };
+    }
+
+    // 7. Construir objeto _pendingNotification
+    var pendingNotification = {
+      decision: tipo,
+      observations: payload.observations || "",
+      notasAnalista: payload.notasAnalista || "",
+      correoAdicional1: payload.correoAdicional1 || "",
+      correoAdicional2: payload.correoAdicional2 || "",
+      ccSeleccionados: Array.isArray(payload.ccSeleccionados) ? payload.ccSeleccionados : [],
+      segmento: segmento || "",
+      fechaGuardado: new Date().toISOString(),
+      usuarioGuardado: Session.getActiveUser().getEmail()
+    };
+
+    // 8. Persistir JSON gestión (columna 6) con _pendingNotification
+    var jsonCell = Renovaciones.getRange(rowIndex, 6);
+    var jsonActual = {};
+    try {
+      jsonActual = JSON.parse(jsonCell.getValue());
+    } catch (e) {
+      jsonActual = dataLead || {};
+    }
+    Object.assign(jsonActual, urlsFinales);
+    if (payload.manualUpdates && typeof payload.manualUpdates === "object") {
+      Object.assign(jsonActual, payload.manualUpdates);
+    }
+    jsonActual._pendingNotification = pendingNotification;
+    jsonCell.setValue(JSON.stringify(jsonActual));
+
+    // 9. Registrar historial (columna 7) con acción GUARDAR_SIN_ENVIO
+    var cellObs = Renovaciones.getRange(rowIndex, 7);
+    var historial = [];
+    try {
+      var valHist = cellObs.getValue();
+      if (valHist) historial = JSON.parse(valHist);
+      if (!Array.isArray(historial)) historial = [];
+    } catch (e) { historial = []; }
+
+    historial.push({
+      fecha: new Date().toISOString(),
+      usuario: Session.getActiveUser().getEmail(),
+      observacion: "Gestión guardada sin envío de correo. Decisión: " + tipo,
+      estado: "Pendiente por notificación",
+      accion: "GUARDAR_SIN_ENVIO"
+    });
+    cellObs.setValue(JSON.stringify(historial));
+
+    // 10. Establecer estado "Pendiente por notificación" (columna 5)
+    Renovaciones.getRange(rowIndex, 5).setValue("Pendiente por notificación");
+
+    return { success: true, message: "Gestión guardada correctamente. Estado: Pendiente por notificación." };
+
+  } catch (e) {
+    console.error("guardarGestionSinEnvio error: " + e.toString());
+    return { success: false, message: "Error al guardar la gestión. Intente nuevamente." };
+  }
+}
+
+
+/**
+ * Procesa la decisión del analista Y envía el correo de notificación.
  * payload: mismo que processAnalystDecision + tipoAccionCorreo ('APPROVE'|'CORRECTION'|'CANCELADA') + correoAdicional1/2 + emailAnalistaAsignado + segmentoSheetColumn (opcional) + notasAnalista (aprobar)
  * emailAdjuntos: [{ tipo:'drive', fileId, nombre }, { tipo:'base64', data, mimeType, nombre }]
  */
@@ -3273,10 +3447,6 @@ function procesarDecisionAnalistaConCorreo(payload) {
     if (payload.segmento != null && String(payload.segmento).trim() !== "") {
       prevPayload.segmento = payload.segmento;
     }
-    var preview = buildRenovacionCorreoPreviewPayload_(prevPayload);
-
-    if (!preview.success) return preview;
-
     var adjProc = _adjuntosRenovCorreoProcesar_(payload.emailAdjuntos || []);
     if (payload.emailAdjuntos && payload.emailAdjuntos.length) {
       var fallosAdj = adjProc.informe.filter(function (x) {
@@ -3296,10 +3466,25 @@ function procesarDecisionAnalistaConCorreo(payload) {
       }
     }
 
+    if (tipo === "APPROVE") {
+      var DOCS_FIJOS_APROBACION = [
+        { tipo: "drive", fileId: "1K0Z-cm3XbFmqZxWdjyHlGRic3Q1v9BdS", nombre: "PROCESO_PAGO_POLIZA_CORRETAJE_PROPIETARIOS" },
+        { tipo: "drive", fileId: "1KiQ8Nmr3rZvMzHQiQyzuLWTNCrL3qDQx", nombre: "revocacion corretaje 2026" },
+        { tipo: "drive", fileId: "1qiSlgotGfzl045pMtK7FmxKjE8Zlj0WK", nombre: "Proceso de Reclamación siniestros nuevo completo.pdf" },
+        { tipo: "drive", fileId: "1O-jRuyu-GUYJqcF1DY2i-yzpdpko05ca", nombre: "Clausulado (1).pdf" }
+      ];
+      var adjFijos = _adjuntosRenovCorreoProcesar_(DOCS_FIJOS_APROBACION);
+      adjProc.blobs = adjProc.blobs.concat(adjFijos.blobs);
+    }
+
     var resProceso = processAnalystDecision(payload);
     if (!resProceso.success) {
       return resProceso;
     }
+
+    // Construir preview DESPUÉS de processAnalystDecision para que numPolizaEmitida ya esté en la hoja
+    var preview = buildRenovacionCorreoPreviewPayload_(prevPayload);
+    if (!preview.success) return preview;
 
     var ccStr = preview.cc.length ? preview.cc.join(",") : "";
     var mailOpts = { htmlBody: preview.htmlBody, noReply: true };
